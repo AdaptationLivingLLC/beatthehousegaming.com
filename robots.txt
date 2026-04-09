@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Private/gated pages — do not index
+Disallow: /access_bthg.html
+Disallow: /app.html
+Disallow: /beyond-luck.html
+
+# Vestigial legacy paths
+Disallow: /bthg.html
+
+# Assets
+Disallow: /api/
+Disallow: /tests/
+
+Sitemap: https://beatthehousegaming.com/sitemap.xml

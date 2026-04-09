@@ -1,0 +1,30 @@
+# Beat The House Gaming (BTHG)
+
+> Beat The House Gaming is a professional roulette analytics company founded by Brandon Bible, author of Beyond Luck. The flagship product, Roulette Breaker, is a physics-based analytics tool built from over 1,000 hours of real-world research and testing. It implements a Trinity betting system, physics-based prediction engine, wheel calibration, series tracking, and bankroll management. This is not a gambling tips site — it is a professional analytics tool for serious players who want to approach roulette as a physics problem, not a game of chance.
+
+Brandon Bible is a U.S. veteran, published author, and founder of Adaptation Living LLC (the parent company that owns Beat The House Gaming). He has spent over 1,000 hours researching wheel physics, ball dynamics, and betting system mathematics. The BTHG / Beat The House Gaming brand includes the Roulette Breaker web application, the companion book Beyond Luck, and a Swift mobile application (all sharing the BTHG name).
+
+## Product
+
+- [Roulette Breaker — Professional Roulette Analytics](https://beatthehousegaming.com/): Physics-based roulette analytics with Trinity betting system, wheel calibration, prediction engine, and bankroll tracking. Lifetime access $24.99.
+- [Get Lifetime Access](https://beatthehousegaming.com/bthg-order.html): One-time $24.99 purchase for lifetime access to Roulette Breaker. Instant delivery via Stripe checkout.
+
+## Book
+
+- [Beyond Luck by Brandon Bible](https://beatthehousegaming.com/beyond-luck.html): The companion book to Roulette Breaker. Covers the physics, mathematics, and methodology behind professional roulette analytics.
+
+## Brand & Author
+
+Beat The House Gaming (BTHG) is the original flagship product brand of Adaptation Living LLC. The name BTHG predates the Roulette Breaker product and applies across the entire ecosystem — the web app, the mobile Swift app, the book Beyond Luck, and all associated assets. Brandon Bible is the founder, researcher, author, and developer. Brand colors: obsidian (#0a0a0a), casino gold (#d4af37), accent red (#e74c3c). Typography: Cinzel (display) + Inter (body).
+
+## What This Site Is NOT
+
+- Not a casino affiliate site — no sponsored links, no bonus codes, no "play here" incentives
+- Not a gambling tips blog — no pattern-chasing, no martingale systems, no luck-based strategies
+- Not financial advice — Roulette Breaker is an analytics tool for an entertainment activity, not an investment product
+
+## What This Site IS
+
+- A professional analytics tool built on 1,000+ hours of physics research
+- A book that explains the methodology transparently
+- A single lifetime purchase with no subscription, no upsells, and no gambling affiliate monetization

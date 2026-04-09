@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Roulette Breaker — Professional Analytics App | Beat The House Gaming</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="description" content="Roulette Breaker application — professional physics-based roulette analytics with prediction engine, Trinity betting system, wheel calibration, and bankroll tracking.">
+    <meta name="author" content="Brandon Bible / Beat The House Gaming">
+
+    <!-- SEO: Canonical & Open Graph (app page — noindex because it's the application, not marketing) -->
+    <meta name="robots" content="noindex, follow" />
+    <link rel="canonical" href="https://beatthehousegaming.com/app.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Beat The House Gaming" />
+    <meta property="og:title" content="Roulette Breaker — Professional Analytics App" />
+    <meta property="og:description" content="Professional roulette analytics application with physics-based prediction engine and Trinity betting." />
+    <meta property="og:url" content="https://beatthehousegaming.com/app.html" />
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0a">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Favicon -->
+    <link rel="icon" href="images/bthg-favicon.jpg" type="image/jpeg">
+
+    <!-- Google Tag Manager (BTHG / Beat The House Gaming — original brand container) -->
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            }); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-MJ4PX9C3');
+    </script>
+    <!-- End Google Tag Manager -->
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P3K6HCP3JL"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-P3K6HCP3JL');
+    </script>
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="app-header-logo">ROULETTE BREAKER</div>
+        <div class="app-header-timer" id="access-timer">--:--:--</div>
+        <div class="app-header-menu">
+            <a href="bthg.html" title="Home"><i class="fas fa-home"></i></a>
+        </div>
+    </header>
+
+    <!-- App Root (all content rendered here by JS) -->
+    <div id="app-root"></div>
+
+    <!-- Scripts (order matters) -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/paywall.js"></script>
+    <script src="js/admin-keygen.js"></script>
+    <script src="js/physics-core.js"></script>
+    <script src="js/series-engine.js"></script>
+    <script src="js/prediction-engine.js"></script>
+    <script src="js/calibration.js"></script>
+    <script src="js/bankroll.js"></script>
+    <script src="js/roulette-table.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

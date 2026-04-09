@@ -1,0 +1,1561 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <title>Roulette Breaker — Professional Physics-Based Roulette Analytics | Beat The House Gaming</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="description" content="Roulette Breaker: Professional physics-based roulette analytics tool from over 1,000 hours of real-world research. Trinity betting system, wheel calibration, bankroll tracking. By Brandon Bible, author of Beyond Luck." />
+    <meta name="keywords" content="roulette strategy, physics roulette, roulette analytics, professional roulette system, trinity betting, wheel calibration, roulette software, beat the house, Beyond Luck book, Brandon Bible" />
+    <meta name="author" content="Brandon Bible / Adaptation Living LLC" />
+
+    <!-- SEO: Canonical & Open Graph -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://beatthehousegaming.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Beat The House Gaming" />
+    <meta property="og:title" content="Roulette Breaker — Professional Physics-Based Roulette Analytics" />
+    <meta property="og:description" content="Professional physics-based roulette analytics. Trinity betting system, wheel calibration, bankroll tracking. Built from 1,000+ hours of real-world research by Brandon Bible." />
+    <meta property="og:url" content="https://beatthehousegaming.com/" />
+    <meta property="og:image" content="https://beatthehousegaming.com/images/bthg-hero-final.jpg" />
+    <meta property="og:image:alt" content="Roulette Breaker by Beat The House Gaming" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Roulette Breaker — Professional Physics-Based Roulette Analytics" />
+    <meta name="twitter:description" content="Professional physics-based roulette analytics. Built from 1,000+ hours of real-world research by Brandon Bible." />
+    <meta name="twitter:image" content="https://beatthehousegaming.com/images/bthg-hero-final.jpg" />
+
+    <!-- Schema.org Product Markup -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Roulette Breaker",
+      "description": "Professional physics-based roulette analytics tool with Trinity betting system, wheel calibration, and bankroll tracking.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web",
+      "author": {
+        "@type": "Person",
+        "name": "Brandon Bible",
+        "url": "https://beatthehousegaming.com/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Beat The House Gaming",
+        "url": "https://beatthehousegaming.com/"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "24.99",
+        "priceCurrency": "USD",
+        "url": "https://beatthehousegaming.com/bthg-order.html"
+      }
+    }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Favicon -->
+    <link rel="icon" href="images/bthg-favicon.jpg" type="image/jpeg" />
+
+    <!-- Google Tag Manager (BTHG / Beat The House Gaming — original brand container) -->
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            }); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-MJ4PX9C3');
+    </script>
+    <!-- End Google Tag Manager -->
+
+    <!-- Google Analytics (GA4) — BTHG brand property -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P3K6HCP3JL"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-P3K6HCP3JL');
+    </script>
+
+    <style>
+        /* Modern Reset & Variables */
+        :root {
+            --primary: #ffffff;
+            --accent: #e74c3c;
+            --gold: #d4af37;
+            --gold-glow: rgba(212, 175, 55, 0.4);
+            --glass: rgba(20, 20, 20, 0.75);
+            --glass-strong: rgba(20, 20, 20, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #cccccc;
+            --bg-dark: #0a0a0a;
+            --font-display: 'Cinzel', serif;
+            --font-body: 'Inter', sans-serif;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            line-height: 1.6;
+            overflow-x: hidden;
+            padding-top: 80px;
+        }
+
+        a { text-decoration: none; color: inherit; transition: var(--transition); }
+        ul { list-style: none; }
+
+        h1, h2, h3, h4 {
+            font-family: var(--font-display);
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        h1 { font-size: 2.5rem; text-align: center; margin-bottom: 2rem; }
+        p { margin-bottom: 1.5rem; font-weight: 300; color: var(--text-muted); }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 90px;
+            padding: 0 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 2px solid var(--gold);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .brand { display: flex; align-items: center; height: 100%; }
+
+        .header-logo {
+            max-height: 80px;
+            width: auto;
+            max-width: 300px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.3));
+        }
+
+        .brand span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+            font-family: var(--font-display);
+            letter-spacing: 0.1em;
+        }
+
+        .nav-links { display: flex; gap: 2rem; }
+
+        .nav-links a {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            position: relative;
+            padding: 8px 16px;
+            margin: 0 5px;
+            overflow: hidden;
+            transition: all 0.3s;
+            --led-color: #d4af37;
+            --led-speed: 2s;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-links a:hover { opacity: 1; color: var(--accent); }
+
+        .nav-links a:nth-child(1) { --led-color: #d4af37; --led-speed: 2.2s; }
+        .nav-links a:nth-child(2) { --led-color: #00ffff; --led-speed: 1.8s; }
+        .nav-links a:nth-child(3) { --led-color: #ff3333; --led-speed: 2.5s; }
+        .nav-links a:nth-child(4) { --led-color: #33ff33; --led-speed: 1.5s; }
+        .nav-links a:nth-child(5) { --led-color: #9d00ff; --led-speed: 2.0s; }
+        .nav-links a:nth-child(6) {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-links a span {
+            position: absolute;
+            display: block;
+            filter: drop-shadow(0 0 2px var(--led-color));
+        }
+
+        .nav-links a span:nth-child(1) {
+            top: 0; left: -100%; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--led-color), #fff);
+            animation: btn-anim1 var(--led-speed) linear infinite;
+        }
+
+        @keyframes btn-anim1 { 0% { left: -100%; } 50%, 100% { left: 100%; } }
+
+        .nav-links a span:nth-child(2) {
+            top: -100%; right: 0; width: 1px; height: 100%;
+            background: linear-gradient(180deg, transparent, var(--led-color), #fff);
+            animation: btn-anim2 var(--led-speed) linear infinite;
+            animation-delay: calc(var(--led-speed) / 4);
+        }
+
+        @keyframes btn-anim2 { 0% { top: -100%; } 50%, 100% { top: 100%; } }
+
+        .nav-links a span:nth-child(3) {
+            bottom: 0; right: -100%; width: 100%; height: 1px;
+            background: linear-gradient(270deg, transparent, var(--led-color), #fff);
+            animation: btn-anim3 var(--led-speed) linear infinite;
+            animation-delay: calc(var(--led-speed) / 2);
+        }
+
+        @keyframes btn-anim3 { 0% { right: -100%; } 50%, 100% { right: 100%; } }
+
+        .nav-links a span:nth-child(4) {
+            bottom: -100%; left: 0; width: 1px; height: 100%;
+            background: linear-gradient(360deg, transparent, var(--led-color), #fff);
+            animation: btn-anim4 var(--led-speed) linear infinite;
+            animation-delay: calc(var(--led-speed) * 0.75);
+        }
+
+        @keyframes btn-anim4 { 0% { bottom: -100%; } 50%, 100% { bottom: 100%; } }
+
+        .nav-links a:nth-child(6) span:nth-child(1) {
+            background: linear-gradient(90deg, transparent, #d4af37, #ff3333, #9d00ff, #00ffff, #33ff33);
+            animation: btn-anim1 0.6s linear infinite; height: 2px; opacity: 1;
+        }
+        .nav-links a:nth-child(6) span:nth-child(2) {
+            background: linear-gradient(180deg, transparent, #d4af37, #ff3333, #9d00ff, #00ffff, #33ff33);
+            animation: btn-anim2 0.7s linear infinite; width: 2px; opacity: 1;
+        }
+        .nav-links a:nth-child(6) span:nth-child(3) {
+            background: linear-gradient(270deg, transparent, #d4af37, #ff3333, #9d00ff, #00ffff, #33ff33);
+            animation: btn-anim3 0.5s linear infinite; height: 2px; opacity: 1;
+        }
+        .nav-links a:nth-child(6) span:nth-child(4) {
+            background: linear-gradient(360deg, transparent, #d4af37, #ff3333, #9d00ff, #00ffff, #33ff33);
+            animation: btn-anim4 2.0s linear infinite; width: 2px; opacity: 1;
+        }
+
+        .nav-links a:not(:nth-child(6)):hover {
+            box-shadow: 0 0 10px var(--led-color), inset 0 0 10px rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6); color: #fff;
+        }
+        .nav-links a:not(:nth-child(6)):hover span { animation-duration: 0.5s; }
+        .nav-links a:nth-child(6):hover {
+            box-shadow: 0 0 10px #d4af37, 0 0 20px #ff3333, 0 0 30px #00ffff;
+            background: rgba(0, 0, 0, 0.8); border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-nav {
+            border: 1px solid var(--primary);
+            padding: 0.5rem 1.2rem;
+            border-radius: 4px;
+        }
+        .btn-nav:hover { background: var(--primary); color: var(--bg-dark); }
+
+        /* Container */
+        .container {
+            max-width: 1100px;
+            margin: 4rem auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.45);
+            border: 1px solid var(--glass-border);
+            padding: 3rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            width: 100%;
+        }
+
+        /* Grid */
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .feature-box {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+        .feature-box:hover { border-color: var(--gold); transform: translateY(-5px); }
+        .feature-box i { font-size: 2.5rem; color: var(--gold); margin-bottom: 1rem; display: block; }
+        .feature-box h4 { color: var(--gold); margin-bottom: 0.75rem; font-size: 1rem; }
+
+        .split-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .split-section { grid-template-columns: 1fr; }
+            .navbar { flex-direction: column; gap: 1rem; padding: 1rem; }
+            .nav-links { flex-wrap: wrap; justify-content: center; }
+        }
+
+        /* Police Lights */
+        @keyframes police-flash {
+            0% { box-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000 inset; border-color: #ff0000; color: #ffcccc; }
+            50% { box-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff inset; border-color: #0000ff; color: #ccccff; }
+            100% { box-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000 inset; border-color: #ff0000; color: #ffcccc; }
+        }
+
+        .police-lights {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border: 2px solid #ff0000;
+            border-radius: 4px;
+            animation: police-flash 0.5s infinite alternate;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        /* =============================================
+           HERO SECTION
+           ============================================= */
+        .hero {
+            padding: 2rem 0;
+            position: relative;
+        }
+
+        /* Solid backdrop behind hero so the flashing video doesn't show through */
+        .hero::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(180deg, rgba(5,5,8,0.97) 0%, rgba(5,5,8,0.92) 60%, rgba(5,5,8,0.75) 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .hero-author-banner {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-author-banner p {
+            font-size: 1.15rem;
+            color: #fff;
+            line-height: 1.8;
+            max-width: 800px;
+            margin: 0 auto;
+            font-weight: 400;
+        }
+
+        .hero-author-banner em {
+            color: var(--gold);
+            font-style: italic;
+            font-weight: 600;
+        }
+
+        .hero-columns {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        /* --- THE BOOK (left) --- */
+        .hero-book-card {
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 12px;
+            padding: 1.25rem 1.25rem 1.5rem;
+        }
+
+        .hero-book-card .card-label {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        .hero-book-card img {
+            width: 100%;
+            max-width: 230px;
+            filter: drop-shadow(0 0 18px rgba(212,175,55,0.4));
+            border-radius: 4px;
+        }
+
+        .hero-book-card .book-title {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: #fff;
+            margin: 0.75rem 0 0.25rem;
+            line-height: 1.3;
+        }
+
+        .hero-book-card .book-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .hero-book-card .book-buy-btn {
+            display: inline-block;
+            padding: 0.6rem 1.5rem;
+            background: var(--gold);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .hero-book-card .book-buy-btn:hover {
+            box-shadow: 0 0 15px var(--gold-glow);
+            color: #000;
+        }
+
+        /* --- THE APP (right) --- */
+        .hero-app-section {
+            text-align: center;
+        }
+
+        .hero-app-section .card-label {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        .css-logo-hero {
+            font-family: var(--font-display);
+            font-size: 3.8rem;
+            font-weight: 700;
+            color: var(--gold);
+            text-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(212,175,55,0.2), 0 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: 0.2em;
+            line-height: 1.1;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero-app-desc {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            max-width: 550px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .hero-app-desc strong {
+            color: #fff;
+        }
+
+        .hero-app-cta {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            background: var(--gold);
+            color: #000;
+            font-weight: 800;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            box-shadow: 0 0 25px var(--gold-glow);
+            transition: all 0.3s;
+        }
+
+        .hero-app-cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 40px var(--gold-glow), 0 5px 20px rgba(0,0,0,0.3);
+            color: #000;
+        }
+
+        .hero-app-cta i {
+            margin-right: 0.4rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero-columns {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            .hero-book-card {
+                max-width: 260px;
+                margin: 0 auto;
+            }
+            .css-logo-hero { font-size: 2.5rem; }
+            .hero-app-desc { font-size: 0.95rem; }
+            .hero-author-banner p { font-size: 1rem; }
+        }
+
+        /* =============================================
+           GIANT PRICING BANNER
+           ============================================= */
+        .pricing-banner {
+            text-align: center;
+            padding: 3rem 2rem;
+            margin: 2rem 0;
+            background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05));
+            border: 2px solid var(--gold);
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            animation: banner-glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes banner-glow {
+            0% { box-shadow: 0 0 20px var(--gold-glow), inset 0 0 30px rgba(212,175,55,0.05); }
+            100% { box-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(212,175,55,0.15), inset 0 0 50px rgba(212,175,55,0.08); }
+        }
+
+        .pricing-price {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gold);
+            text-shadow: 0 0 15px var(--gold-glow);
+            line-height: 1;
+        }
+
+        .pricing-per-day {
+            font-size: 1.5rem;
+            color: var(--gold);
+            opacity: 0.9;
+        }
+
+        .pricing-tagline {
+            font-size: 1.4rem;
+            color: #fff;
+            font-weight: 700;
+            margin: 1rem 0 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .pricing-sub {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .pricing-cta {
+            display: inline-block;
+            padding: 1rem 3rem;
+            background: var(--gold);
+            color: #000;
+            font-weight: 800;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            box-shadow: 0 0 25px var(--gold-glow);
+            transition: all 0.3s;
+        }
+
+        .pricing-cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 40px var(--gold-glow), 0 5px 20px rgba(0,0,0,0.3);
+            color: #000;
+        }
+
+        /* .pricing-old removed — no fake strikethrough pricing */
+
+        @media (max-width: 768px) {
+            .pricing-price { font-size: 2rem; }
+            .pricing-tagline { font-size: 1.1rem; }
+            .pricing-banner { padding: 2rem 1rem; }
+        }
+
+        /* =============================================
+           SALES DESCRIPTION
+           ============================================= */
+        .sales-section {
+            text-align: left;
+            margin: 3rem 0;
+        }
+
+        .sales-section h3 {
+            color: var(--gold);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .sales-section p {
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+
+        .sales-section ul {
+            margin-left: 1.5rem;
+            margin-bottom: 2rem;
+            line-height: 2;
+        }
+
+        .sales-section li { list-style: disc; color: var(--text-muted); }
+        .sales-section li strong { color: #fff; }
+
+        /* =============================================
+           HOW IT WORKS — Steps
+           ============================================= */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .step-card {
+            text-align: center;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .step-card:hover { border-color: var(--gold); }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--gold);
+            color: #000;
+            font-weight: 800;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-family: var(--font-display);
+        }
+
+        .step-card h4 { color: #fff; font-size: 0.95rem; margin-bottom: 0.5rem; }
+        .step-card p { font-size: 0.85rem; margin-bottom: 0; }
+
+        /* =============================================
+           ACCESS KEY ENTRY
+           ============================================= */
+        .key-entry-section {
+            text-align: center;
+            padding: 2rem;
+            margin: 2rem 0;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+        }
+
+        .key-entry-section h3 {
+            color: var(--gold);
+            margin-bottom: 0.5rem;
+        }
+
+        .key-input-wrap {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 500px;
+            margin: 1rem auto 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .key-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            color: #fff;
+            font-family: monospace;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .key-input:focus { border-color: var(--gold); }
+
+        .key-submit {
+            padding: 0.75rem 1.5rem;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .key-submit:hover { box-shadow: 0 0 15px var(--gold-glow); }
+
+        #key-message {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            min-height: 1.5em;
+        }
+
+        /* =============================================
+           CASINO BANNER ADS
+           ============================================= */
+        .casino-banners-section {
+            margin: 3rem 0;
+        }
+
+        .casino-banners-section h2 {
+            text-align: center;
+            color: var(--gold);
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .casino-banners-section .section-sub {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        .ad-banner {
+            display: block;
+            position: relative;
+            border: 2px solid rgba(212,175,55,0.4);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(0,0,0,0.6);
+        }
+
+        .ad-banner:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 25px var(--gold-glow), 0 5px 20px rgba(0,0,0,0.4);
+            transform: translateY(-3px);
+        }
+
+        .ad-banner img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .ad-banner-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            gap: 0.5rem;
+            min-height: 120px;
+        }
+
+        .ad-banner-fallback .casino-name {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+
+        .ad-banner-fallback .casino-tagline {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .ad-banner-fallback .casino-perks {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            font-size: 0.85rem;
+            color: #5eff00;
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+
+        .ad-banner-fallback .ad-cta-btn {
+            display: inline-block;
+            padding: 0.7rem 2rem;
+            font-weight: 800;
+            font-size: 0.95rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+
+        .ad-label {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #888;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 2;
+            font-weight: 600;
+        }
+
+        /* BC.GAME theme */
+        .ad-bcgame { border-color: rgba(0,255,136,0.4); }
+        .ad-bcgame:hover { border-color: #00ff88; box-shadow: 0 0 25px rgba(0,255,136,0.3); }
+        .ad-bcgame .casino-name { color: #00ff88; }
+        .ad-bcgame .ad-cta-btn { background: linear-gradient(135deg, #00ff88, #00d4ff); color: #000; }
+
+        /* NanoGames theme */
+        .ad-nano { border-color: rgba(180,74,255,0.4); }
+        .ad-nano:hover { border-color: #b44aff; box-shadow: 0 0 25px rgba(180,74,255,0.3); }
+        .ad-nano .casino-name { color: #00d4ff; }
+        .ad-nano .ad-cta-btn { background: linear-gradient(135deg, #b44aff, #00d4ff); color: #fff; }
+
+        /* DuckDice theme */
+        .ad-duck { border-color: rgba(245,197,24,0.4); }
+        .ad-duck:hover { border-color: #f5c518; box-shadow: 0 0 25px rgba(245,197,24,0.3); }
+        .ad-duck .casino-name { color: #f5c518; }
+        .ad-duck .ad-cta-btn { background: linear-gradient(135deg, #f5c518, #ff9500); color: #000; }
+
+        .casino-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .casino-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 2rem 1.5rem;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            gap: 0.75rem;
+        }
+
+        .casino-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--gold);
+            box-shadow: 0 0 20px var(--gold-glow);
+        }
+
+        .casino-card .casino-card-name {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .casino-card .casino-card-rating {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .casino-card .casino-card-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .casino-card .casino-card-perks {
+            font-size: 0.8rem;
+            color: #5eff00;
+            font-weight: 600;
+            line-height: 1.8;
+        }
+
+        .casino-card .casino-card-btn {
+            display: inline-block;
+            padding: 0.6rem 1.8rem;
+            font-weight: 800;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+            margin-top: auto;
+        }
+
+        .casino-card .casino-card-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .casino-cards-grid { grid-template-columns: 1fr; }
+            .ad-banner-fallback .casino-perks { flex-direction: column; gap: 0.5rem; }
+        }
+
+        /* Footer */
+        footer {
+            background: #000;
+            padding: 4rem 2rem;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 4rem;
+        }
+
+        .social-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2rem; }
+        .social-links a { font-size: 1.5rem; color: var(--text-muted); }
+        .copyright { color: #555; font-size: 0.9rem; }
+    </style>
+</head>
+
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MJ4PX9C3" height="0" width="0"
+            style="display:none;visibility:hidden"></iframe>
+    </noscript>
+
+    <!-- Header -->
+    <header class="navbar">
+        <div class="brand">
+            <a href="bthg.html" style="display: flex; align-items: center;">
+                <img src="images/bthg-header-logo.jpg" alt="Beat The House Gaming" class="header-logo"
+                    style="max-height: 80px; width: auto;">
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="index_v2.html">
+                <span></span><span></span><span></span><span></span>
+                Home
+            </a>
+            <a href="services.html">
+                <span></span><span></span><span></span><span></span>
+                Services
+            </a>
+            <a href="packages.html">
+                <span></span><span></span><span></span><span></span>
+                Packages
+            </a>
+            <a href="lifesaver.html">LS-2025<span></span><span></span><span></span><span></span></a>
+            <a href="bthg.html">
+                <span></span><span></span><span></span><span></span>
+                BTHG.us
+            </a>
+            <a href="app.html" class="btn-nav">
+                <span></span><span></span><span></span><span></span>
+                Launch App
+            </a>
+        </div>
+    </header>
+
+    <!-- Background Video -->
+    <video id="bg-video" autoplay muted loop playsinline poster="images/bthg-cover-spread.png"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; opacity: 0.3;">
+        <source src="assets/video/BTHGPlayableLoGo.MP4" type="video/mp4" />
+    </video>
+
+    <div class="container">
+        <!-- =============================================
+             HERO SECTION
+             ============================================= -->
+        <section class="hero">
+            <div class="hero-columns">
+
+                <!-- STEP 1: THE BOOK -->
+                <div class="hero-book-card">
+                    <span class="card-label" style="font-size:0.7rem; letter-spacing:0.4em; color:var(--gold); opacity:0.7;">STEP 1</span>
+                    <div style="font-family:var(--font-display); font-size:1.4rem; color:#fff; margin:0.5rem 0 1rem; font-weight:700;">Read the Book</div>
+                    <img src="images/bthg-book-3d-v2.png" alt="Beat The House Gaming: Beyond Luck">
+                    <div class="book-title">Beat the House Gaming</div>
+                    <div class="book-subtitle">Beyond Luck</div>
+                    <p style="font-size:0.8rem; color:#999; margin:0.5rem 0 1rem; line-height:1.5;">How I discovered it. How I proved it worked. How I beat the house until they banned me. Everything you need to understand before you touch the app.</p>
+                    <a href="https://a.co/d/9lkr1dE" target="_blank" class="book-buy-btn">
+                        <i class="fab fa-amazon"></i> Buy on Amazon
+                    </a>
+                </div>
+
+                <!-- STEP 2: THE APP -->
+                <div class="hero-app-section">
+                    <span class="card-label" style="font-size:0.7rem; letter-spacing:0.4em; color:var(--gold); opacity:0.7;">STEP 2</span>
+                    <div style="font-family:var(--font-display); font-size:1.4rem; color:#fff; margin:0.5rem 0 1rem; font-weight:700;">Use the App</div>
+                    <div class="css-logo-hero">ROULETTE<br>BREAKER</div>
+                    <p style="font-size:0.8rem; color:#999; margin:0.5rem auto 1rem; line-height:1.5; max-width:400px;">The tool I built to do what the book teaches. Track the wheel. Measure the physics. Let the data tell you when to act.</p>
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
+                        <a href="https://buy.stripe.com/8x28wP69u1e97a5de69MY08" class="hero-app-cta">
+                            <i class="fas fa-unlock-alt"></i> $24.99 — Permanent Access
+                        </a>
+                        <span style="font-size:0.75rem; color:#666;">One payment. Yours forever.</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =============================================
+             GIANT PRICING BANNER
+             ============================================= -->
+        <div class="pricing-banner">
+            <div class="pricing-price">$24.99</div>
+            <div class="pricing-tagline" style="margin-top:0.5rem;">Permanent Access — One Payment</div>
+            <p class="pricing-sub">Pay once. Use forever. Works on any device. No install required.</p>
+            <a href="https://buy.stripe.com/8x28wP69u1e97a5de69MY08" class="pricing-cta">
+                GET ACCESS
+            </a>
+        </div>
+
+        <!-- =============================================
+             DETAILED SALES DESCRIPTION
+             ============================================= -->
+        <div class="glass-panel" style="border-color: rgba(212,175,55,0.2); margin-bottom: 3rem;">
+
+            <section class="sales-section">
+                <h3>This Is Not For Everyone</h3>
+                <p style="color:#fff; font-size:1.1rem;">
+                    Let me be straight with you. Roulette Breaker is a <strong>serious tool</strong> built for a very specific
+                    type of person. If you're looking for a magic button that prints money — this isn't it. If you're willing to
+                    sit at a single roulette wheel for <strong>hours</strong>, tracking every spin without placing a single bet,
+                    because you understand that <strong>the data is the edge</strong> — then this was built for you.
+                </p>
+                <p style="color:#ccc; font-size:1rem; margin-top:1rem;">
+                    I discovered something real. Not a "system." Not a pattern you read about online. I spent over a thousand hours
+                    proving that the physics of a roulette wheel — its speed, its tilt, its pocket depth, the way the ball decelerates —
+                    can be measured, tracked, and used. I was banned from every casino in my area because of what I could do at their
+                    tables. That's not a sales pitch. That's the reality that led me to write the book and build this app.
+                </p>
+
+                <h3 style="margin-top:2rem;">Read the Book First</h3>
+                <p>
+                    <em>Beat the House Gaming</em> isn't a strategy guide full of recycled advice. It's the real story of how I
+                    discovered that roulette wheels have measurable, exploitable imperfections. It covers how I figured it out,
+                    how I proved it worked, how I capitalized on it, and what happened when the casinos caught on. If you're going
+                    to use this app the right way, the book gives you the foundation to understand <strong>why</strong> it works —
+                    not just how to press buttons.
+                </p>
+
+                <h3 style="margin-top:2rem;">What the App Actually Does</h3>
+                <p>
+                    Roulette Breaker tracks every spin on a specific wheel and builds a complete data profile of that wheel's behavior.
+                    A "series" is one complete cycle — every number on the wheel being hit at least once. The average series on the
+                    first wheel I ever tracked was <strong>256 spins</strong>. You need to track at least 3 consecutive series
+                    before the data becomes actionable. That's potentially <strong>10+ hours of focused tracking</strong> at a single
+                    table before you place your first bet.
+                </p>
+                <p>
+                    The physics engine measures ball speed, deceleration, and scatter patterns. The prediction model uses real
+                    kinematics — <em>ω(t) = ω₀ × e<sup>-kt</sup></em> — not superstition. The more data you feed it on a specific
+                    wheel, the more accurate it becomes.
+                </p>
+
+                <h3 style="margin-top:2rem;">The Commitment Required</h3>
+                <p>
+                    This tool requires <strong>patience through the roof</strong>. You will sit at a table for hours recording
+                    numbers. You will not bet during the data collection phase. You will come back to the same wheel day after day.
+                    Most people don't have the discipline for this — and that's exactly why it works for the ones who do. If
+                    everyone could do it, the casinos would have fixed it by now.
+                </p>
+
+                <h3 style="margin-top:2rem;">What You Get When It Pays Off</h3>
+                <p>
+                    When the data is solid and the Final 8 activates, you're covering the last unhit numbers on the wheel with
+                    a controlled betting progression (Trinity: 1x → 2x → 4x → 8x). One hit at 35:1 pays for multiple misses.
+                    The math works. But it only works if you put in the hours first.
+                </p>
+            </section>
+
+            <hr style="border-color: rgba(212,175,55,0.15); margin: 2rem 0;">
+
+            <!-- =============================================
+                 FEATURE SHOWCASE
+                 ============================================= -->
+            <section>
+                <h2 style="color:var(--gold); text-align:center; margin-bottom:2rem;">What You Get</h2>
+                <div class="grid-3">
+                    <div class="feature-box">
+                        <i class="fas fa-crosshairs"></i>
+                        <h4>Physics Engine</h4>
+                        <p>Exponential ball decay model. Drop time prediction. Angle-to-pocket convolution.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-brain"></i>
+                        <h4>Smart Predictor</h4>
+                        <p>P_final probability distribution. Top 8 recommendations. Machine learning from scatter data.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-chart-line"></i>
+                        <h4>Series Tracking</h4>
+                        <p>38-number tracking. Final 8 state machine. Aging, auto-fill, completion detection.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-crown"></i>
+                        <h4>Trinity Betting</h4>
+                        <p>Progressive multiplier (1x → 8x). Automatic escalation. Single-hit recovery math.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-stopwatch"></i>
+                        <h4>Manual Calibration</h4>
+                        <p>Live ball-pass timing. RPM + deceleration computation. Wheel condition assessment.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-dollar-sign"></i>
+                        <h4>Bankroll Manager</h4>
+                        <p>Session P&L. Win rate. Peak tracking. Chip stack visualization.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-table"></i>
+                        <h4>Full Roulette Table</h4>
+                        <p>Interactive 38-number grid. Hits + ago overlays. Side bet heat tracking.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-database"></i>
+                        <h4>Data Inspector</h4>
+                        <p>Hot/cold analysis. Side bet status. Raw spin history. Export/import sessions.</p>
+                    </div>
+                    <div class="feature-box">
+                        <i class="fas fa-mobile-alt"></i>
+                        <h4>Works Everywhere</h4>
+                        <p>Any browser, any device. Optimized for mobile landscape. No app install needed.</p>
+                    </div>
+                </div>
+            </section>
+
+            <hr style="border-color: rgba(212,175,55,0.15); margin: 2rem 0;">
+
+            <!-- =============================================
+                 HOW IT WORKS — 4 Steps
+                 ============================================= -->
+            <section>
+                <h2 style="color:var(--gold); text-align:center; margin-bottom:0.5rem;">How It Works</h2>
+                <p style="text-align:center; margin-bottom:2rem;">Four steps from payment to predictions.</p>
+
+                <div class="steps-grid">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <h4>Pay $24.99</h4>
+                        <p>Secure Stripe payment. Instant permanent access. One payment, yours forever.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <h4>Calibrate</h4>
+                        <p>Time ball passes on your wheel. The system calculates RPM and decay.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <h4>Record Spins</h4>
+                        <p>Tap each result on the roulette grid. The system builds your data set.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <h4>Follow Predictions</h4>
+                        <p>Final 8 activates. Trinity betting engages. Follow the numbers.</p>
+                    </div>
+                </div>
+            </section>
+
+            <hr style="border-color: rgba(212,175,55,0.15); margin: 2rem 0;">
+
+            <!-- =============================================
+                 ACCESS KEY ENTRY
+                 ============================================= -->
+            <section class="key-entry-section">
+                <h3>Have an Access Key?</h3>
+                <p style="color:var(--text-muted); margin-bottom:0.5rem;">If you received a key from the owner, paste it below to unlock.</p>
+                <div class="key-input-wrap">
+                    <input type="text" id="access-key-input" class="key-input" placeholder="BTHG-XXXX-XXXX-XXXX...">
+                    <button id="btn-redeem-key" class="key-submit">Unlock</button>
+                </div>
+                <div id="key-message"></div>
+            </section>
+
+            <hr style="border-color: rgba(212,175,55,0.15); margin: 2rem 0;">
+
+            <!-- =============================================
+                 BOOK PROMO
+                 ============================================= -->
+            <section style="margin-bottom:2rem;">
+                <div class="split-section" style="align-items:start;">
+                    <div style="text-align:center;">
+                        <img src="images/bthg-book-3d-v2.png" alt="Beyond Luck 3D Book Cover"
+                            style="width:100%; max-width:350px; filter:drop-shadow(0 0 20px rgba(212,175,55,0.4));">
+                        <div style="margin-top:1rem;">
+                            <a href="https://a.co/d/9lkr1dE" target="_blank"
+                                style="display:inline-block; background:var(--gold); color:#000; font-weight:800; padding:0.8rem 2rem; border-radius:6px; font-size:1rem;">
+                                <i class="fab fa-amazon"></i> Buy on Amazon
+                            </a>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color:var(--gold); margin-bottom:1rem;">Beat The House Gaming: Beyond Luck</h3>
+                        <p style="font-size:1.05rem; color:#fff;">
+                            The book gives you the <strong>framework</strong>. The app gives you the
+                            <strong>instrument panel</strong>.
+                        </p>
+                        <p>
+                            <em>Beyond Luck</em> covers spin mapping, the Trinity System, bankroll structure, and
+                            how to study automated roulette terminals like a professional. It's the foundation that
+                            Roulette Breaker was built on.
+                        </p>
+                        <p>
+                            Whether you use the app, the book, or both — the system is about
+                            <strong>discipline, data, and execution</strong>. Not luck.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Video Preview -->
+            <section style="margin: 3rem 0; text-align: center;">
+                <h3 style="color: var(--gold); margin-bottom: 1rem;">Listen to the First Two Chapters</h3>
+                <p style="max-width: 600px; margin: 0 auto 2rem;">
+                    AI-narrated preview of the opening chapters. Hear the system laid out before you dive in.
+                </p>
+                <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:8px; border:1px solid rgba(212,175,55,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+                    <iframe src="https://www.youtube.com/embed/JYeEZE-LzTs"
+                        title="Beat The House Gaming - First Two Chapters"
+                        style="position:absolute; top:0; left:0; width:100%; height:100%;" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </section>
+
+        </div> <!-- End glass-panel -->
+
+        <!-- =============================================
+             SECOND CTA
+             ============================================= -->
+        <div class="pricing-banner" style="margin-top:3rem;">
+            <div class="pricing-price">$24.99</div>
+            <div class="pricing-tagline">Permanent Access — One Payment</div>
+            <p class="pricing-sub">Pay once. Use forever. Works on any device. No install required.</p>
+            <a href="https://buy.stripe.com/8x28wP69u1e97a5de69MY08" class="pricing-cta">
+                GET ACCESS NOW
+            </a>
+        </div>
+
+    </div> <!-- End container -->
+
+    <!-- =============================================
+         CRYPTO CASINO BANNER ADS
+         ============================================= -->
+    <div style="max-width:1100px; margin:0 auto; padding:0 1.5rem;">
+
+        <div class="casino-banners-section">
+            <h2>Play With Crypto — Cash Out Instantly</h2>
+            <p class="section-sub">No ID required. No bank delays. Deposit crypto, play, and withdraw your winnings in minutes — not days.</p>
+
+            <!-- BC.GAME Banner -->
+            <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener" class="ad-banner ad-bcgame">
+                <span class="ad-label">Sponsored</span>
+                <img src="images/banners/bcgame-banner.png" alt="BC.GAME - #1 Crypto Casino - No ID Cash Out"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ad-banner-fallback" style="display:none;">
+                    <div class="casino-name">BC.GAME</div>
+                    <div class="casino-tagline">The #1 Crypto Casino — No ID Required to Cash Out</div>
+                    <div class="casino-perks">
+                        <span>&#10003; Instant Crypto Withdrawals</span>
+                        <span>&#10003; No KYC / No ID Verification</span>
+                        <span>&#10003; 300% Welcome Bonus</span>
+                        <span>&#10003; 8000+ Games</span>
+                    </div>
+                    <span class="ad-cta-btn">CLAIM 300% BONUS &#10148;</span>
+                </div>
+            </a>
+
+            <!-- NanoGames Banner -->
+            <a href="https://nanogames.io/i-iiqthvy-n/" target="_blank" rel="noopener" class="ad-banner ad-nano">
+                <span class="ad-label">Sponsored</span>
+                <img src="images/banners/nanogames-banner.png" alt="NanoGames.io - Provably Fair Crypto Casino"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ad-banner-fallback" style="display:none;">
+                    <div class="casino-name">NANOGAMES.IO</div>
+                    <div class="casino-tagline">Provably Fair Crypto Casino — Crash, Dice, Slots & More</div>
+                    <div class="casino-perks">
+                        <span>&#10003; Instant Cash Out</span>
+                        <span>&#10003; No ID Needed</span>
+                        <span>&#10003; 50+ Cryptos</span>
+                        <span>&#10003; Provably Fair</span>
+                    </div>
+                    <span class="ad-cta-btn">PLAY NANOGAMES &#10148;</span>
+                </div>
+            </a>
+
+            <!-- DuckDice Banner -->
+            <a href="https://duckdice.io/?c=a261344537" target="_blank" rel="noopener" class="ad-banner ad-duck">
+                <span class="ad-label">Sponsored</span>
+                <img src="images/banners/duckdice-banner.png" alt="DuckDice.io - Bitcoin Dice Casino"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="ad-banner-fallback" style="display:none;">
+                    <div class="casino-name">DUCKDICE.IO</div>
+                    <div class="casino-tagline">Bitcoin Dice — 1% House Edge — Free Faucet</div>
+                    <div class="casino-perks">
+                        <span>&#10003; Instant Withdrawals</span>
+                        <span>&#10003; No ID Required</span>
+                        <span>&#10003; 1% House Edge</span>
+                        <span>&#10003; Free Faucet</span>
+                    </div>
+                    <span class="ad-cta-btn">PLAY DUCKDICE &#10148;</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Casino Cards Section -->
+        <div class="casino-banners-section">
+            <h2>Why Crypto Casinos?</h2>
+            <p class="section-sub">Traditional casinos hold your money for days. Crypto casinos pay you in minutes — no questions asked.</p>
+
+            <div class="casino-cards-grid">
+                <!-- BC.GAME Card -->
+                <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(0,255,136,0.3);">
+                    <div class="casino-card-name" style="color:#00ff88;">BC.GAME</div>
+                    <div class="casino-card-rating">9.8/10</div>
+                    <p class="casino-card-desc">The world's #1 crypto casino. 8,000+ games, 100+ cryptocurrencies, and the fastest payouts in the industry.</p>
+                    <div class="casino-card-perks">
+                        &#10003; No ID to withdraw<br>
+                        &#10003; Cash out in under 2 minutes<br>
+                        &#10003; 300% deposit bonus<br>
+                        &#10003; Provably fair games
+                    </div>
+                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#00ff88,#00d4ff); color:#000;">JOIN BC.GAME &#10148;</span>
+                </a>
+
+                <!-- NanoGames Card -->
+                <a href="https://nanogames.io/i-iiqthvy-n/" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(180,74,255,0.3);">
+                    <div class="casino-card-name" style="color:#00d4ff;">NANOGAMES</div>
+                    <div class="casino-card-rating">8.8/10</div>
+                    <p class="casino-card-desc">Sleek crypto casino with killer original games. Crash, Dice, Plinko — all provably fair with a vibrant community.</p>
+                    <div class="casino-card-perks">
+                        &#10003; No ID to withdraw<br>
+                        &#10003; Instant crypto payouts<br>
+                        &#10003; Community rain events<br>
+                        &#10003; 50+ cryptocurrencies
+                    </div>
+                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#b44aff,#00d4ff); color:#fff;">JOIN NANOGAMES &#10148;</span>
+                </a>
+
+                <!-- DuckDice Card -->
+                <a href="https://duckdice.io/?c=a261344537" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(245,197,24,0.3);">
+                    <div class="casino-card-name" style="color:#f5c518;">DUCKDICE</div>
+                    <div class="casino-card-rating">8.5/10</div>
+                    <p class="casino-card-desc">The OG Bitcoin dice game. Simple, clean, and one of the lowest house edges anywhere. Free faucet to get started.</p>
+                    <div class="casino-card-perks">
+                        &#10003; No ID to withdraw<br>
+                        &#10003; Instant crypto payouts<br>
+                        &#10003; Only 1% house edge<br>
+                        &#10003; Free crypto faucet
+                    </div>
+                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#f5c518,#ff9500); color:#000;">PLAY DUCKDICE &#10148;</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Crypto Benefits Quick Section -->
+        <div class="glass-panel" style="border-color:rgba(0,255,136,0.3); margin-bottom:3rem;">
+            <h2 style="color:#00ff88; text-align:center; margin-bottom:1.5rem;">Crypto Gambling = Instant Money</h2>
+            <div class="grid-3">
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-bolt" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">Instant Cash Out</h4>
+                    <p>Win at the table, withdraw to your wallet in under 2 minutes. No holds, no pending periods, no excuses. Your money hits your wallet immediately.</p>
+                </div>
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-user-secret" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">No ID Required</h4>
+                    <p>BC.GAME doesn't require identity verification to deposit or withdraw. Sign up with an email, play, cash out. No passports, no selfies, no waiting for "approval."</p>
+                </div>
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-shield-alt" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">Provably Fair</h4>
+                    <p>Every bet is verifiable on the blockchain. These aren't rigged slots — you can mathematically prove every result is fair. Real transparency.</p>
+                </div>
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-coins" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">100+ Cryptos Accepted</h4>
+                    <p>Bitcoin, Ethereum, Litecoin, Solana, DOGE, USDT — whatever you hold, these casinos accept it. No currency conversion fees.</p>
+                </div>
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-gift" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">Massive Bonuses</h4>
+                    <p>BC.GAME offers up to 300% deposit match. Traditional casinos cap at 100% if you're lucky. Crypto casinos give you more to play with.</p>
+                </div>
+                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
+                    <i class="fas fa-globe" style="color:#00ff88;"></i>
+                    <h4 style="color:#00ff88;">Play From Anywhere</h4>
+                    <p>No geographic restrictions. No blocked bank transfers. Crypto works worldwide — deposit and play from any country, any device.</p>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:2rem;">
+                <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener"
+                    style="display:inline-block; padding:1rem 2.5rem; background:linear-gradient(135deg,#00ff88,#00d4ff); color:#000; font-weight:800; font-size:1.1rem; border-radius:8px; letter-spacing:0.08em; box-shadow:0 0 25px rgba(0,255,136,0.3); transition:all 0.3s;">
+                    START PLAYING AT BC.GAME &#10148;
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Responsible Gambling Callout -->
+    <section style="margin:3rem auto 0 auto; max-width:900px; text-align:center; padding:0 1.5rem;">
+        <div style="background:rgba(0,0,0,0.7); border:1px solid rgba(212,175,55,0.4); border-radius:8px; padding:1.75rem 1.5rem; box-shadow:0 8px 30px rgba(0,0,0,0.6);">
+            <h3 style="color:var(--gold); margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.08em; font-size:0.95rem;">
+                Play With Discipline. Walk Away With Control.
+            </h3>
+            <p style="font-size:0.95rem; opacity:0.85; margin-bottom:0.75rem;">
+                The systems, methods, and tools described on this site are for adults who choose to gamble within their
+                legal limits and financial boundaries. If gambling stops being entertainment and starts becoming stress,
+                debt, or obsession, it is time to stop.
+            </p>
+            <p style="font-size:0.95rem; margin-bottom:0.25rem;">
+                <strong>Problem with gambling?</strong> Help is available 24/7.
+            </p>
+            <p style="font-size:1rem; font-weight:700; color:#ffffff;">
+                Call or text <span style="color:var(--gold);">1-800-GAMBLER</span>
+                <span style="opacity:0.7; font-size:0.9rem;">(1-800-426-2537)</span>
+            </p>
+            <p style="font-size:0.8rem; opacity:0.65; margin-top:0.5rem;">
+                In the U.S., you can also visit your state or local problem gambling helpline resources for additional options.
+            </p>
+        </div>
+    </section>
+
+    <!-- Government Credentials Bar -->
+    <div style="background:rgba(11,22,40,0.95); border-top:1px solid rgba(255,255,255,0.1); border-bottom:1px solid rgba(255,255,255,0.1); padding:10px 5%; margin-top:4rem; text-align:center; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; color:#f4f6fb;">
+        <span>Adaptation Living LLC</span>
+        <span>• SAM.gov Registered – All Awards</span>
+        <span>• CAGE: 95WK4</span>
+        <span>• UEI: J3XGTRT7DYU5</span>
+        <span>• NAICS: 541720 – Research & Development in the Social Sciences and Humanities</span>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="social-links">
+            <a href="#"><i class="fab fa-twitter"></i></a>
+            <a href="#"><i class="fab fa-facebook-f"></i></a>
+            <a href="#"><i class="fab fa-github"></i></a>
+            <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+
+        <!-- QR Code — quick mobile access -->
+        <div id="footer-qr" style="margin:1.5rem auto; text-align:center;">
+            <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gold); margin-bottom:0.5rem; font-family:var(--font-display);">
+                Open on Your Phone
+            </p>
+            <div id="qr-target" style="display:inline-block; background:#fff; padding:8px; border-radius:6px; line-height:0;"></div>
+            <p style="font-size:0.7rem; opacity:0.45; margin-top:0.4rem; margin-bottom:0;">
+                beatthehousegaming.com
+            </p>
+        </div>
+
+        <div class="copyright">
+            &copy; 2025 Beat The House Gaming / Adaptation Living LLC. All rights reserved.<br>
+            <a href="mailto:info@adaptationliving.com">info@adaptationliving.com</a><br>
+            <a href="ls2025-legal-privacy.html" class="police-lights">Privacy Policy/Legal Notice</a>
+        </div>
+    </footer>
+
+    <!-- Lightweight QR generator (< 5 KB) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script>
+        (function() {
+            var qr = qrcode(0, 'M');
+            qr.addData('https://beatthehousegaming.com');
+            qr.make();
+            var el = document.getElementById('qr-target');
+            if (el) el.innerHTML = qr.createSvgTag({ cellSize: 3, margin: 0 });
+        })();
+    </script>
+
+    <!-- Key Redemption Script -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/paywall.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show expired message if redirected
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('expired') === '1') {
+                const msg = document.getElementById('key-message');
+                if (msg) {
+                    msg.textContent = 'Your access has expired. Purchase again or enter a new key below.';
+                    msg.style.color = '#ff8800';
+                }
+            }
+
+            // Key redemption
+            const btn = document.getElementById('btn-redeem-key');
+            const input = document.getElementById('access-key-input');
+            const msgEl = document.getElementById('key-message');
+
+            if (btn) {
+                btn.addEventListener('click', async function() {
+                    const key = input.value.trim();
+                    if (!key) {
+                        msgEl.textContent = 'Please enter a key.';
+                        msgEl.style.color = '#ff4444';
+                        return;
+                    }
+                    btn.textContent = 'Validating...';
+                    btn.disabled = true;
+
+                    const result = await BTHG.Paywall.redeemKey(key);
+                    if (result.success) {
+                        msgEl.textContent = 'Access granted for ' + result.days + ' day(s)! Redirecting...';
+                        msgEl.style.color = '#5EFF00';
+                        setTimeout(function() {
+                            window.location.href = 'app.html';
+                        }, 1500);
+                    } else {
+                        msgEl.textContent = result.message;
+                        msgEl.style.color = '#ff4444';
+                        btn.textContent = 'Unlock';
+                        btn.disabled = false;
+                    }
+                });
+            }
+
+            // Also handle key in URL
+            const urlKey = params.get('key');
+            if (urlKey && input) {
+                input.value = urlKey;
+                btn.click();
+            }
+        });
+    </script>
+</body>
+
+</html>

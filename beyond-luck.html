@@ -1,0 +1,400 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <title>Beyond Luck — Beat The House Gaming</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="canonical" href="https://beatthehousegaming.com/beyond-luck.html" />
+    <meta name="description" content="Beyond Luck by Brandon Bible — the companion book to Roulette Breaker. Password-gated preview for lifetime members." />
+    <meta name="author" content="Brandon Bible" />
+    <meta property="og:type" content="book" />
+    <meta property="og:site_name" content="Beat The House Gaming" />
+    <meta property="og:title" content="Beyond Luck — A Book by Brandon Bible" />
+    <meta property="og:description" content="Beyond Luck by Brandon Bible — the companion book to Roulette Breaker." />
+    <meta property="og:url" content="https://beatthehousegaming.com/beyond-luck.html" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Favicon -->
+    <link rel="icon" href="images/bthg-favicon.jpg" type="image/jpeg" />
+
+    <style>
+        :root {
+            --primary: #ffffff;
+            --accent: #e74c3c;
+            --gold: #d4af37;
+            --gold-glow: rgba(212, 175, 55, 0.4);
+            --glass: rgba(20, 20, 20, 0.75);
+            --glass-strong: rgba(20, 20, 20, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #cccccc;
+            --bg-dark: #0a0a0a;
+            --font-display: 'Cinzel', serif;
+            --font-body: 'Inter', sans-serif;
+            --transition: all 0.3s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        a { text-decoration: none; color: inherit; transition: var(--transition); }
+
+        h1, h2, h3, h4 {
+            font-family: var(--font-display);
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Header Bar */
+        .header-bar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 70px;
+            padding: 0 5%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .header-bar img {
+            max-height: 55px;
+            width: auto;
+            filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.3));
+        }
+
+        /* ========== PASSWORD GATE ========== */
+        .gate-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-dark);
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .gate-box {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 80px rgba(212, 175, 55, 0.06);
+        }
+
+        .gate-box .lock-icon {
+            font-size: 2.5rem;
+            color: var(--gold);
+            margin-bottom: 1.25rem;
+            text-shadow: 0 0 20px var(--gold-glow);
+        }
+
+        .gate-box h2 {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, var(--gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .gate-box .gate-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 300;
+            margin-bottom: 1.75rem;
+        }
+
+        .gate-input-wrap {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .gate-input-wrap input {
+            width: 100%;
+            padding: 0.85rem 1.2rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .gate-input-wrap input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .gate-input-wrap input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .gate-btn {
+            width: 100%;
+            padding: 0.85rem;
+            background: linear-gradient(135deg, var(--gold), #b8962e);
+            border: none;
+            border-radius: 8px;
+            color: #0a0a0a;
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .gate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--gold-glow);
+        }
+
+        .gate-error {
+            color: var(--accent);
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+            min-height: 1.2em;
+            font-weight: 400;
+        }
+
+        /* ========== BOOK CONTENT (hidden until unlocked) ========== */
+        .page-wrapper {
+            padding-top: 90px;
+            padding-bottom: 3rem;
+            display: none;
+        }
+
+        .book-header {
+            text-align: center;
+            padding: 2rem 1.5rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .book-header .label {
+            display: inline-block;
+            font-family: var(--font-display);
+            font-size: 0.75rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 0 10px var(--gold-glow);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 0.3rem 1rem;
+            border-radius: 4px;
+        }
+
+        .book-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, var(--gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .book-header .subtitle {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 300;
+            font-style: italic;
+            margin-bottom: 0.25rem;
+        }
+
+        .book-header .author {
+            font-size: 0.95rem;
+            color: var(--gold);
+            font-family: var(--font-display);
+            letter-spacing: 0.1em;
+        }
+
+        .book-header .edition {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            font-weight: 300;
+        }
+
+        /* PDF Viewer */
+        .pdf-container {
+            max-width: 900px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .pdf-frame {
+            background: rgba(20, 20, 20, 0.45);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px rgba(212, 175, 55, 0.08);
+        }
+
+        .pdf-frame iframe {
+            display: block;
+            width: 100%;
+            height: 85vh;
+            border: none;
+        }
+
+        /* Footer */
+        .book-footer {
+            text-align: center;
+            padding: 2rem 1.5rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .book-footer p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 300;
+            line-height: 1.8;
+        }
+
+        .book-footer .copyright {
+            color: var(--gold);
+            font-weight: 400;
+        }
+
+        .book-footer .warning {
+            margin-top: 1rem;
+            padding: 1rem;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            border-radius: 8px;
+            background: rgba(231, 76, 60, 0.05);
+            font-size: 0.75rem;
+            color: rgba(231, 76, 60, 0.8);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .book-header h1 { font-size: 1.8rem; }
+            .pdf-frame iframe { height: 70vh; }
+            .pdf-container { padding: 0 0.75rem; }
+            .gate-box { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Minimal Header -->
+    <div class="header-bar">
+        <a href="https://beatthehousegaming.com">
+            <img src="images/bthg-favicon.jpg" alt="Beat The House Gaming" />
+        </a>
+    </div>
+
+    <!-- ========== PASSWORD GATE ========== -->
+    <div class="gate-overlay" id="gate">
+        <div class="gate-box">
+            <div class="lock-icon"><i class="fas fa-lock"></i></div>
+            <h2>Exclusive Content</h2>
+            <p class="gate-subtitle">Enter your access code to continue</p>
+            <div class="gate-input-wrap">
+                <input type="password" id="gate-input" placeholder="Access Code" autocomplete="off" autofocus />
+            </div>
+            <button class="gate-btn" id="gate-btn">Unlock</button>
+            <p class="gate-error" id="gate-error"></p>
+        </div>
+    </div>
+
+    <!-- ========== BOOK CONTENT (injected after auth) ========== -->
+    <div class="page-wrapper" id="book-content">
+        <div class="book-header">
+            <span class="label">Exclusive Access</span>
+            <h1>Beyond Luck</h1>
+            <p class="subtitle">"Teaching you step by step how I tracked, tested, and played — so you can study the method and apply it with discipline."</p>
+            <p class="author">by Brandon Bible</p>
+            <p class="edition">First Edition &bull; &copy; 2025 Brandon Bible &amp; Adaptation Living LLC</p>
+        </div>
+
+        <!-- PDF injected here by JS after unlock -->
+        <div class="pdf-container">
+            <div class="pdf-frame" id="pdf-mount"></div>
+        </div>
+
+        <div class="book-footer">
+            <p class="copyright">&copy; 2025 Brandon Bible &amp; Adaptation Living LLC. All rights reserved.</p>
+            <p>ISBN: 9798268496802</p>
+            <div class="warning">
+                <i class="fas fa-lock"></i> &nbsp;This page is for authorized viewers only. No part of this book may be reproduced, distributed, or transmitted without prior written permission.
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        var H = 'bfc14828474b69e4e41eae8c254a9c23021c8167953e056400613842cdd45d2b';
+
+        async function digest(msg) {
+            var data = new TextEncoder().encode(msg);
+            var buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(function (b) {
+                return b.toString(16).padStart(2, '0');
+            }).join('');
+        }
+
+        async function unlock() {
+            var val = document.getElementById('gate-input').value;
+            if (!val) return;
+            var hash = await digest(val);
+            if (hash === H) {
+                document.getElementById('gate').style.display = 'none';
+                document.getElementById('book-content').style.display = 'block';
+                var frame = document.createElement('iframe');
+                frame.title = 'Beyond Luck by Brandon Bible';
+                frame.src = atob('QlRIRy1QUk9PRi1CT09LLUtEUC5wZGY=');
+                document.getElementById('pdf-mount').appendChild(frame);
+            } else {
+                document.getElementById('gate-error').textContent = 'Invalid access code. Try again.';
+                document.getElementById('gate-input').value = '';
+                document.getElementById('gate-input').focus();
+            }
+        }
+
+        document.getElementById('gate-btn').addEventListener('click', unlock);
+        document.getElementById('gate-input').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') unlock();
+        });
+    })();
+    </script>
+
+</body>
+
+</html>
