@@ -13,7 +13,7 @@
 (function() {
   const BTHG = window.BTHG;
   const Access = BTHG.Storage.Access;
-  const STRIPE_LINK = 'https://buy.stripe.com/8x28wP69u1e97a5de69MY08';
+  const STRIPE_LINK = 'https://buy.stripe.com/28E14n41m1e9eCxeia9MY0d';
   const LANDING_PAGE = 'index.html';
   const APP_PAGE = 'app.html';
   const SESSION_KEY = 'bthg_session_v2';
