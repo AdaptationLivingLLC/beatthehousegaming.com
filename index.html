@@ -4,8 +4,8 @@
 <head>
     <title>Roulette Breaker — Professional Physics-Based Roulette Analytics | Beat The House Gaming</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <meta name="description" content="Roulette Breaker: Professional physics-based roulette analytics tool from over 1,000 hours of real-world research. Trinity betting system, wheel calibration, bankroll tracking. By Brandon Bible, author of Beyond Luck." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Roulette Breaker: a professional web app for physics-based roulette analytics. Works on any device, at any casino worldwide. Trinity betting, wheel calibration, bankroll tracking. $24.99 lifetime access. By Brandon Bible, author of Beyond Luck." />
     <meta name="keywords" content="roulette strategy, physics roulette, roulette analytics, professional roulette system, trinity betting, wheel calibration, roulette software, beat the house, Beyond Luck book, Brandon Bible" />
     <meta name="author" content="Brandon Bible / Adaptation Living LLC" />
 
@@ -30,7 +30,7 @@
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "Roulette Breaker",
-      "description": "Professional physics-based roulette analytics tool with Trinity betting system, wheel calibration, and bankroll tracking.",
+      "description": "Professional web app for physics-based roulette analytics. Works on any device, at any casino worldwide. Trinity betting system, wheel calibration, and bankroll tracking.",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Web",
       "author": {
@@ -47,7 +47,8 @@
         "@type": "Offer",
         "price": "24.99",
         "priceCurrency": "USD",
-        "url": "https://beatthehousegaming.com/bthg-order.html"
+        "url": "https://buy.stripe.com/28E14n41m1e9eCxeia9MY0d",
+        "availability": "https://schema.org/InStock"
       }
     }
     </script>
@@ -152,11 +153,11 @@
         .brand { display: flex; align-items: center; height: 100%; }
 
         .header-logo {
-            max-height: 80px;
+            max-height: 70px;
             width: auto;
-            max-width: 300px;
+            max-width: 350px;
             object-fit: contain;
-            filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.3));
+            filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));
         }
 
         .brand span {
@@ -941,6 +942,52 @@
         .social-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2rem; }
         .social-links a { font-size: 1.5rem; color: var(--text-muted); }
         .copyright { color: #555; font-size: 0.9rem; }
+
+        /* Trust Badges */
+        .trust-strip {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .trust-strip .trust-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 0.02em;
+        }
+        .trust-strip .trust-item i {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.55);
+        }
+        .trust-strip .trust-divider {
+            width: 1px;
+            height: 16px;
+            background: rgba(255,255,255,0.12);
+        }
+        .trust-stripe-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 0.04em;
+        }
+        .trust-stripe-badge i {
+            font-size: 0.85rem;
+            color: #635bff;
+        }
+        @media (max-width: 480px) {
+            .trust-strip { gap: 0.6rem; }
+            .trust-strip .trust-item { font-size: 0.7rem; }
+            .trust-strip .trust-item i { font-size: 0.95rem; }
+            .trust-divider { display: none; }
+        }
     </style>
 </head>
 
@@ -955,8 +1002,7 @@
     <header class="navbar">
         <div class="brand">
             <a href="bthg.html" style="display: flex; align-items: center;">
-                <img src="images/bthg-header-logo.jpg" alt="Beat The House Gaming" class="header-logo"
-                    style="max-height: 80px; width: auto;">
+                <img src="images/bthg-header-logo.png" alt="Beat The House Gaming" class="header-logo">
             </a>
         </div>
         <div class="nav-links">
@@ -1015,12 +1061,24 @@
                     <span class="card-label" style="font-size:0.7rem; letter-spacing:0.4em; color:var(--gold); opacity:0.7;">STEP 2</span>
                     <div style="font-family:var(--font-display); font-size:1.4rem; color:#fff; margin:0.5rem 0 1rem; font-weight:700;">Use the App</div>
                     <div class="css-logo-hero">ROULETTE<br>BREAKER</div>
-                    <p style="font-size:0.8rem; color:#999; margin:0.5rem auto 1rem; line-height:1.5; max-width:400px;">The tool I built to do what the book teaches. Track the wheel. Measure the physics. Let the data tell you when to act.</p>
+                    <p style="font-size:0.8rem; color:#999; margin:0.5rem auto 1rem; line-height:1.5; max-width:400px;">A professional web app built to do what the book teaches. Track the wheel. Measure the physics. Let the data tell you when to act. Open it on any phone, tablet, or laptop — anywhere in the world.</p>
                     <div style="display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
                         <a href="https://buy.stripe.com/28E14n41m1e9eCxeia9MY0d" class="hero-app-cta">
                             <i class="fas fa-unlock-alt"></i> $24.99 — Permanent Access
                         </a>
                         <span style="font-size:0.75rem; color:#666;">One payment. Yours forever.</span>
+                    </div>
+                    <div class="trust-strip">
+                        <span class="trust-item"><i class="fab fa-apple"></i> iPhone &amp; iPad</span>
+                        <span class="trust-divider"></span>
+                        <span class="trust-item"><i class="fab fa-android"></i> Android</span>
+                        <span class="trust-divider"></span>
+                        <span class="trust-item"><i class="fab fa-chrome"></i> Chrome</span>
+                        <span class="trust-divider"></span>
+                        <span class="trust-item"><i class="fab fa-safari"></i> Safari</span>
+                    </div>
+                    <div class="trust-stripe-badge">
+                        <i class="fab fa-stripe-s"></i> Secured by Stripe
                     </div>
                 </div>
 
@@ -1033,10 +1091,29 @@
         <div class="pricing-banner">
             <div class="pricing-price">$24.99</div>
             <div class="pricing-tagline" style="margin-top:0.5rem;">Permanent Access — One Payment</div>
-            <p class="pricing-sub">Pay once. Use forever. Works on any device. No install required.</p>
+            <p class="pricing-sub">Pay once. Use forever. No download, no install — runs in your browser on any device. Accepted worldwide.</p>
+            <div style="display:flex; justify-content:center; gap:2rem; margin:1rem 0 1.5rem; flex-wrap:wrap;">
+                <span style="color:var(--text-muted); font-size:0.9rem;"><i class="fas fa-mobile-alt" style="color:var(--gold); margin-right:0.4rem;"></i>Phone</span>
+                <span style="color:var(--text-muted); font-size:0.9rem;"><i class="fas fa-tablet-alt" style="color:var(--gold); margin-right:0.4rem;"></i>Tablet</span>
+                <span style="color:var(--text-muted); font-size:0.9rem;"><i class="fas fa-laptop" style="color:var(--gold); margin-right:0.4rem;"></i>Laptop</span>
+                <span style="color:var(--text-muted); font-size:0.9rem;"><i class="fas fa-desktop" style="color:var(--gold); margin-right:0.4rem;"></i>Desktop</span>
+                <span style="color:var(--text-muted); font-size:0.9rem;"><i class="fas fa-globe" style="color:var(--gold); margin-right:0.4rem;"></i>Any Country</span>
+            </div>
             <a href="https://buy.stripe.com/28E14n41m1e9eCxeia9MY0d" class="pricing-cta">
                 GET ACCESS
             </a>
+            <div class="trust-strip" style="margin-top:1.25rem;">
+                <span class="trust-item"><i class="fab fa-apple"></i> iPhone &amp; iPad</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-android"></i> Android</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-chrome"></i> Chrome</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-safari"></i> Safari</span>
+            </div>
+            <div class="trust-stripe-badge">
+                <i class="fab fa-stripe-s"></i> Secured by Stripe
+            </div>
         </div>
 
         <!-- =============================================
@@ -1147,9 +1224,9 @@
                         <p>Hot/cold analysis. Side bet status. Raw spin history. Export/import sessions.</p>
                     </div>
                     <div class="feature-box">
-                        <i class="fas fa-mobile-alt"></i>
-                        <h4>Works Everywhere</h4>
-                        <p>Any browser, any device. Optimized for mobile landscape. No app install needed.</p>
+                        <i class="fas fa-globe"></i>
+                        <h4>Works Worldwide</h4>
+                        <p>Any browser, any device, any country. Phone, tablet, or laptop — open it at any casino on Earth. No download required.</p>
                     </div>
                 </div>
             </section>
@@ -1166,8 +1243,8 @@
                 <div class="steps-grid">
                     <div class="step-card">
                         <div class="step-number">1</div>
-                        <h4>Pay $24.99</h4>
-                        <p>Secure Stripe payment. Instant permanent access. One payment, yours forever.</p>
+                        <h4>Buy the App — $24.99</h4>
+                        <p>Secure Stripe checkout. Instant lifetime access delivered to your email. Use it from any device, anywhere.</p>
                     </div>
                     <div class="step-card">
                         <div class="step-number">2</div>
@@ -1261,172 +1338,26 @@
         <div class="pricing-banner" style="margin-top:3rem;">
             <div class="pricing-price">$24.99</div>
             <div class="pricing-tagline">Permanent Access — One Payment</div>
-            <p class="pricing-sub">Pay once. Use forever. Works on any device. No install required.</p>
+            <p class="pricing-sub">One web app. Every device you own. Every casino in the world. No download, no subscription — yours for life.</p>
             <a href="https://buy.stripe.com/28E14n41m1e9eCxeia9MY0d" class="pricing-cta">
-                GET ACCESS NOW
+                GET THE APP
             </a>
+            <div class="trust-strip" style="margin-top:1.25rem;">
+                <span class="trust-item"><i class="fab fa-apple"></i> iPhone &amp; iPad</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-android"></i> Android</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-chrome"></i> Chrome</span>
+                <span class="trust-divider"></span>
+                <span class="trust-item"><i class="fab fa-safari"></i> Safari</span>
+            </div>
+            <div class="trust-stripe-badge">
+                <i class="fab fa-stripe-s"></i> Secured by Stripe
+            </div>
         </div>
 
     </div> <!-- End container -->
 
-    <!-- =============================================
-         CRYPTO CASINO BANNER ADS
-         ============================================= -->
-    <div style="max-width:1100px; margin:0 auto; padding:0 1.5rem;">
-
-        <div class="casino-banners-section">
-            <h2>Play With Crypto — Cash Out Instantly</h2>
-            <p class="section-sub">No ID required. No bank delays. Deposit crypto, play, and withdraw your winnings in minutes — not days.</p>
-
-            <!-- BC.GAME Banner -->
-            <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener" class="ad-banner ad-bcgame">
-                <span class="ad-label">Sponsored</span>
-                <img src="images/banners/bcgame-banner.png" alt="BC.GAME - #1 Crypto Casino - No ID Cash Out"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="ad-banner-fallback" style="display:none;">
-                    <div class="casino-name">BC.GAME</div>
-                    <div class="casino-tagline">The #1 Crypto Casino — No ID Required to Cash Out</div>
-                    <div class="casino-perks">
-                        <span>&#10003; Instant Crypto Withdrawals</span>
-                        <span>&#10003; No KYC / No ID Verification</span>
-                        <span>&#10003; 300% Welcome Bonus</span>
-                        <span>&#10003; 8000+ Games</span>
-                    </div>
-                    <span class="ad-cta-btn">CLAIM 300% BONUS &#10148;</span>
-                </div>
-            </a>
-
-            <!-- NanoGames Banner -->
-            <a href="https://nanogames.io/i-iiqthvy-n/" target="_blank" rel="noopener" class="ad-banner ad-nano">
-                <span class="ad-label">Sponsored</span>
-                <img src="images/banners/nanogames-banner.png" alt="NanoGames.io - Provably Fair Crypto Casino"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="ad-banner-fallback" style="display:none;">
-                    <div class="casino-name">NANOGAMES.IO</div>
-                    <div class="casino-tagline">Provably Fair Crypto Casino — Crash, Dice, Slots & More</div>
-                    <div class="casino-perks">
-                        <span>&#10003; Instant Cash Out</span>
-                        <span>&#10003; No ID Needed</span>
-                        <span>&#10003; 50+ Cryptos</span>
-                        <span>&#10003; Provably Fair</span>
-                    </div>
-                    <span class="ad-cta-btn">PLAY NANOGAMES &#10148;</span>
-                </div>
-            </a>
-
-            <!-- DuckDice Banner -->
-            <a href="https://duckdice.io/?c=a261344537" target="_blank" rel="noopener" class="ad-banner ad-duck">
-                <span class="ad-label">Sponsored</span>
-                <img src="images/banners/duckdice-banner.png" alt="DuckDice.io - Bitcoin Dice Casino"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="ad-banner-fallback" style="display:none;">
-                    <div class="casino-name">DUCKDICE.IO</div>
-                    <div class="casino-tagline">Bitcoin Dice — 1% House Edge — Free Faucet</div>
-                    <div class="casino-perks">
-                        <span>&#10003; Instant Withdrawals</span>
-                        <span>&#10003; No ID Required</span>
-                        <span>&#10003; 1% House Edge</span>
-                        <span>&#10003; Free Faucet</span>
-                    </div>
-                    <span class="ad-cta-btn">PLAY DUCKDICE &#10148;</span>
-                </div>
-            </a>
-        </div>
-
-        <!-- Casino Cards Section -->
-        <div class="casino-banners-section">
-            <h2>Why Crypto Casinos?</h2>
-            <p class="section-sub">Traditional casinos hold your money for days. Crypto casinos pay you in minutes — no questions asked.</p>
-
-            <div class="casino-cards-grid">
-                <!-- BC.GAME Card -->
-                <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(0,255,136,0.3);">
-                    <div class="casino-card-name" style="color:#00ff88;">BC.GAME</div>
-                    <div class="casino-card-rating">9.8/10</div>
-                    <p class="casino-card-desc">The world's #1 crypto casino. 8,000+ games, 100+ cryptocurrencies, and the fastest payouts in the industry.</p>
-                    <div class="casino-card-perks">
-                        &#10003; No ID to withdraw<br>
-                        &#10003; Cash out in under 2 minutes<br>
-                        &#10003; 300% deposit bonus<br>
-                        &#10003; Provably fair games
-                    </div>
-                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#00ff88,#00d4ff); color:#000;">JOIN BC.GAME &#10148;</span>
-                </a>
-
-                <!-- NanoGames Card -->
-                <a href="https://nanogames.io/i-iiqthvy-n/" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(180,74,255,0.3);">
-                    <div class="casino-card-name" style="color:#00d4ff;">NANOGAMES</div>
-                    <div class="casino-card-rating">8.8/10</div>
-                    <p class="casino-card-desc">Sleek crypto casino with killer original games. Crash, Dice, Plinko — all provably fair with a vibrant community.</p>
-                    <div class="casino-card-perks">
-                        &#10003; No ID to withdraw<br>
-                        &#10003; Instant crypto payouts<br>
-                        &#10003; Community rain events<br>
-                        &#10003; 50+ cryptocurrencies
-                    </div>
-                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#b44aff,#00d4ff); color:#fff;">JOIN NANOGAMES &#10148;</span>
-                </a>
-
-                <!-- DuckDice Card -->
-                <a href="https://duckdice.io/?c=a261344537" target="_blank" rel="noopener" class="casino-card" style="border-color:rgba(245,197,24,0.3);">
-                    <div class="casino-card-name" style="color:#f5c518;">DUCKDICE</div>
-                    <div class="casino-card-rating">8.5/10</div>
-                    <p class="casino-card-desc">The OG Bitcoin dice game. Simple, clean, and one of the lowest house edges anywhere. Free faucet to get started.</p>
-                    <div class="casino-card-perks">
-                        &#10003; No ID to withdraw<br>
-                        &#10003; Instant crypto payouts<br>
-                        &#10003; Only 1% house edge<br>
-                        &#10003; Free crypto faucet
-                    </div>
-                    <span class="casino-card-btn" style="background:linear-gradient(135deg,#f5c518,#ff9500); color:#000;">PLAY DUCKDICE &#10148;</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- Crypto Benefits Quick Section -->
-        <div class="glass-panel" style="border-color:rgba(0,255,136,0.3); margin-bottom:3rem;">
-            <h2 style="color:#00ff88; text-align:center; margin-bottom:1.5rem;">Crypto Gambling = Instant Money</h2>
-            <div class="grid-3">
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-bolt" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">Instant Cash Out</h4>
-                    <p>Win at the table, withdraw to your wallet in under 2 minutes. No holds, no pending periods, no excuses. Your money hits your wallet immediately.</p>
-                </div>
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-user-secret" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">No ID Required</h4>
-                    <p>BC.GAME doesn't require identity verification to deposit or withdraw. Sign up with an email, play, cash out. No passports, no selfies, no waiting for "approval."</p>
-                </div>
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-shield-alt" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">Provably Fair</h4>
-                    <p>Every bet is verifiable on the blockchain. These aren't rigged slots — you can mathematically prove every result is fair. Real transparency.</p>
-                </div>
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-coins" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">100+ Cryptos Accepted</h4>
-                    <p>Bitcoin, Ethereum, Litecoin, Solana, DOGE, USDT — whatever you hold, these casinos accept it. No currency conversion fees.</p>
-                </div>
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-gift" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">Massive Bonuses</h4>
-                    <p>BC.GAME offers up to 300% deposit match. Traditional casinos cap at 100% if you're lucky. Crypto casinos give you more to play with.</p>
-                </div>
-                <div class="feature-box" style="border-color:rgba(0,255,136,0.2);">
-                    <i class="fas fa-globe" style="color:#00ff88;"></i>
-                    <h4 style="color:#00ff88;">Play From Anywhere</h4>
-                    <p>No geographic restrictions. No blocked bank transfers. Crypto works worldwide — deposit and play from any country, any device.</p>
-                </div>
-            </div>
-            <div style="text-align:center; margin-top:2rem;">
-                <a href="https://bc.game/i-4acl96fi5-n/" target="_blank" rel="noopener"
-                    style="display:inline-block; padding:1rem 2.5rem; background:linear-gradient(135deg,#00ff88,#00d4ff); color:#000; font-weight:800; font-size:1.1rem; border-radius:8px; letter-spacing:0.08em; box-shadow:0 0 25px rgba(0,255,136,0.3); transition:all 0.3s;">
-                    START PLAYING AT BC.GAME &#10148;
-                </a>
-            </div>
-        </div>
-
-    </div>
 
     <!-- Responsible Gambling Callout -->
     <section style="margin:3rem auto 0 auto; max-width:900px; text-align:center; padding:0 1.5rem;">
@@ -1484,7 +1415,7 @@
         <div class="copyright">
             &copy; 2025 Beat The House Gaming / Adaptation Living LLC. All rights reserved.<br>
             <a href="mailto:info@adaptationliving.com">info@adaptationliving.com</a><br>
-            <a href="ls2025-legal-privacy.html" class="police-lights">Privacy Policy/Legal Notice</a>
+            <a href="legal.html" class="police-lights">Privacy Policy/Legal Notice</a>
         </div>
     </footer>
 

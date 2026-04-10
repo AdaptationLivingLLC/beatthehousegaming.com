@@ -8,6 +8,7 @@ Disallow: /beyond-luck.html
 
 # Vestigial legacy paths
 Disallow: /bthg.html
+Disallow: /ls2025-legal-privacy.html
 
 # Assets
 Disallow: /api/
