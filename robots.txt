@@ -1,17 +1,77 @@
+# ===================================================================
+# beatthehousegaming.com — robots.txt
+# Last updated: 2026-04-10
+# ===================================================================
+
+# --- All well-behaved crawlers (Googlebot, Bingbot, etc.) ----------
 User-agent: *
 Allow: /
 
-# Private/gated pages — do not index
-Disallow: /access_bthg.html
-Disallow: /app.html
-Disallow: /beyond-luck.html
+# Let crawlers access rendering resources (CSS, JS, fonts, images)
+# so Google can fully render pages for indexing and mobile assessment
+Allow: /css/
+Allow: /js/
+Allow: /lib/
+Allow: /images/
 
-# Vestigial legacy paths
+# Block server-side API routes (also protected by X-Robots-Tag in headers)
+Disallow: /api/
+
+# Block dev/test directories — no public value
+Disallow: /tests/
+Disallow: /scripts/
+Disallow: /migrations/
+Disallow: /node_modules/
+
+# Block legacy paths that no longer exist
 Disallow: /bthg.html
 Disallow: /ls2025-legal-privacy.html
 
-# Assets
-Disallow: /api/
-Disallow: /tests/
+# NOTE: access_bthg.html, app.html, and beyond-luck.html are NOT
+# disallowed here. They carry <meta name="robots" content="noindex">
+# tags, which only work if crawlers can actually reach the page.
+# Disallowing + noindex = Google can't see the noindex = may index anyway.
 
+# --- AI training crawlers — block to protect intellectual property --
+# OpenAI web crawler (trains GPT models)
+User-agent: GPTBot
+Disallow: /
+
+# OpenAI ChatGPT browsing plugin
+User-agent: ChatGPT-User
+Disallow: /
+
+# Common Crawl (used by many LLM training pipelines)
+User-agent: CCBot
+Disallow: /
+
+# Google AI training crawler (Gemini / Bard)
+User-agent: Google-Extended
+Disallow: /
+
+# Anthropic AI training crawler
+User-agent: anthropic-ai
+Disallow: /
+
+# Cohere AI training crawler
+User-agent: cohere-ai
+Disallow: /
+
+# Facebook / Meta AI training crawler
+User-agent: FacebookBot
+Disallow: /
+
+# Bytedance AI crawler
+User-agent: Bytespider
+Disallow: /
+
+# Apple AI crawler (Applebot-Extended is training-specific)
+User-agent: Applebot-Extended
+Disallow: /
+
+# Perplexity AI crawler
+User-agent: PerplexityBot
+Disallow: /
+
+# --- Sitemap location -----------------------------------------
 Sitemap: https://beatthehousegaming.com/sitemap.xml
