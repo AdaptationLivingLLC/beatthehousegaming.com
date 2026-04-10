@@ -2,6 +2,7 @@
   "name": "beatthehousegaming.com",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Beat The House Gaming (BTHG) — Roulette Breaker, the physics-based roulette analytics app, plus marketing site and serverless backend.",
   "scripts": {
     "dev": "vercel dev",
