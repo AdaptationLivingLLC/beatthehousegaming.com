@@ -214,10 +214,25 @@
 
     // Gate app.html — server-verified session required
     if (isAppPage) {
-      // Admin token takes precedence — check it first
-      if (getAdminToken()) {
-        markAsAdmin();
-        return;
+      // Admin token takes precedence — verify it server-side first
+      const adminToken = getAdminToken();
+      if (adminToken) {
+        try {
+          const adminRes = await fetch('/api/admin/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken,
+            },
+            body: JSON.stringify({}),
+          });
+          if (adminRes.ok) {
+            markAsAdmin();
+            return;
+          }
+        } catch {}
+        // Token failed verification — clear it and fall through
+        clearAdminToken();
       }
       // Otherwise require a valid session
       const result = await verifySessionWithServer();

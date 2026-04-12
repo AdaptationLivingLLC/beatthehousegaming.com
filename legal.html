@@ -31,6 +31,27 @@
     <!-- Favicon -->
     <link rel="icon" href="images/bthg-favicon.jpg" type="image/jpeg" />
 
+    <!-- Google Consent Mode v2 — must fire before GTM/GA -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('consent', 'default', {
+            'analytics_storage': 'denied',
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied',
+            'wait_for_update': 500
+        });
+        if (localStorage.getItem('bthg_consent') === 'granted') {
+            gtag('consent', 'update', {
+                'analytics_storage': 'granted',
+                'ad_storage': 'granted',
+                'ad_user_data': 'granted',
+                'ad_personalization': 'granted'
+            });
+        }
+    </script>
+
     <!-- Google Tag Manager -->
     <script>
         (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -773,6 +794,17 @@
         </div>
     </footer>
 
+<!-- Cookie Consent Banner -->
+<div id="consent-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,10,0.97);color:#ccc;padding:1rem 1.5rem;text-align:center;z-index:99999;font-family:Inter,sans-serif;font-size:0.85rem;border-top:1px solid #333;backdrop-filter:blur(8px);">
+    We use cookies for analytics to improve your experience.
+    <button onclick="bthgAcceptConsent()" style="background:#d4af37;color:#000;border:none;padding:0.5rem 1.25rem;margin-left:1rem;cursor:pointer;border-radius:4px;font-weight:600;font-size:0.85rem;">Accept</button>
+    <button onclick="bthgDeclineConsent()" style="background:transparent;color:#888;border:1px solid #444;padding:0.5rem 1.25rem;margin-left:0.5rem;cursor:pointer;border-radius:4px;font-size:0.85rem;">Decline</button>
+</div>
+<script>
+(function(){if(!localStorage.getItem('bthg_consent'))document.getElementById('consent-banner').style.display='block';})();
+function bthgAcceptConsent(){localStorage.setItem('bthg_consent','granted');gtag('consent','update',{'analytics_storage':'granted','ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted'});document.getElementById('consent-banner').style.display='none';}
+function bthgDeclineConsent(){localStorage.setItem('bthg_consent','denied');document.getElementById('consent-banner').style.display='none';}
+</script>
 </body>
 
 </html>
