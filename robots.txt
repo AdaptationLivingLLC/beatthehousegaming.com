@@ -24,7 +24,8 @@ Disallow: /migrations/
 Disallow: /node_modules/
 
 # Block legacy paths that no longer exist
-Disallow: /bthg.html
+# NOTE: /bthg.html NOT disallowed — it has a 301 redirect in vercel.json.
+# Google must be able to crawl it to discover the redirect and de-index the old URL.
 Disallow: /ls2025-legal-privacy.html
 
 # NOTE: access_bthg.html, app.html, and beyond-luck.html are NOT
