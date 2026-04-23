@@ -17,24 +17,28 @@
 
   let engine, bankroll, fusion, predictor, tableUI;
 
-  function init() {
-    // 1. Init paywall
-    BTHG.Paywall.initPaywall();
+  // Both initPaywall() and initAdminPanel() are async; calling them
+  // without await leaves `!<Promise>` which is always false, so gates
+  // never fire. Every step below must be awaited.
+  async function init() {
+    const access = await BTHG.Paywall.initPaywall();
 
-    // 2. Check admin mode
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin')) {
-      if (BTHG.AdminKeygen.initAdminPanel()) return;
+      const adminHandled = await BTHG.AdminKeygen.initAdminPanel();
+      if (adminHandled) return;
     }
 
-    // 3. Check access
-    if (!BTHG.Paywall.checkAccess()) return;
+    if (!access) {
+      if (typeof BTHG.Paywall.showGateScreen === 'function') {
+        BTHG.Paywall.showGateScreen();
+      }
+      return;
+    }
 
-    // 4. Start timer
     const timerEl = document.getElementById('access-timer');
     if (timerEl) BTHG.Paywall.startTimer(timerEl);
 
-    // 5. Check for existing session
     const saved = BTHG.Storage.Session.load();
     if (saved && saved.engine && saved.engine.totalSpins > 0) {
       showSessionChoice(saved);
@@ -1294,7 +1298,14 @@
   }
 
   // ---- Boot ---------------------------------------------------
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    init().catch((err) => {
+      console.error('Bootstrap failed:', err);
+      if (typeof BTHG.Paywall.showGateScreen === 'function') {
+        BTHG.Paywall.showGateScreen();
+      }
+    });
+  });
 
   BTHG.App = { init, showSessionSetup };
   window.BTHG = BTHG;

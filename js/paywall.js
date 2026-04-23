@@ -185,61 +185,66 @@
   }
 
   // ---- Init on page load --------------------------------------
+  // Returns true when access is granted (or not required on this page),
+  // false when the gate screen has been painted. Callers on app.html
+  // MUST await this and bail when it returns false.
   async function initPaywall() {
     const params = new URLSearchParams(window.location.search);
     const isAppPage = window.location.pathname.includes('app.html');
 
-    // Handle Stripe payment success — key comes by email
+    // Fail closed: blank #app-root before any verification so that if
+    // JS is slow or throws, nothing protected gets painted.
+    if (isAppPage) {
+      const root = document.getElementById('app-root');
+      if (root) root.innerHTML = '';
+    }
+
     if (params.get('payment') === 'success') {
       handlePaymentSuccess();
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    // Handle key passed via URL (from access email or admin)
     const urlKey = params.get('key');
     if (urlKey) {
       const result = await redeemKey(urlKey);
       if (result.success) {
         window.history.replaceState({}, '', window.location.pathname);
-        if (!isAppPage) { window.location.href = APP_PAGE; return; }
+        if (!isAppPage) { window.location.href = APP_PAGE; return true; }
       } else {
         showMessage(result.message, 'error');
       }
     }
 
-    // Expired redirect banner
     if (params.get('expired') === '1' && !isAppPage) {
       showMessage('Your access has expired. Purchase again or enter a new key.', 'warning');
     }
 
-    // Gate app.html — server-verified session required
-    if (isAppPage) {
-      // Admin token takes precedence — verify it server-side first
-      const adminToken = getAdminToken();
-      if (adminToken) {
-        try {
-          const adminRes = await fetch('/api/admin/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + adminToken,
-            },
-            body: JSON.stringify({}),
-          });
-          if (adminRes.ok) {
-            markAsAdmin();
-            return;
-          }
-        } catch {}
-        // Token failed verification — clear it and fall through
-        clearAdminToken();
-      }
-      // Otherwise require a valid session
-      const result = await verifySessionWithServer();
-      if (!result.valid) {
-        showGateScreen();
-      }
+    if (!isAppPage) return true;
+
+    const adminToken = getAdminToken();
+    if (adminToken) {
+      try {
+        const adminRes = await fetch('/api/admin/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken,
+          },
+          body: JSON.stringify({}),
+        });
+        if (adminRes.ok) {
+          markAsAdmin();
+          return true;
+        }
+      } catch {}
+      clearAdminToken();
     }
+
+    const result = await verifySessionWithServer();
+    if (result.valid) return true;
+
+    showGateScreen();
+    return false;
   }
 
   // ---- In-app gate screen -------------------------------------
@@ -364,15 +369,16 @@
   // is now admin-only and must go through the API; calling it
   // client-side with a duration will throw since there's no secret.
   BTHG.Paywall = {
-    checkAccess,              // async now
+    checkAccess,              // async, server-verified
     hasSessionToken,          // sync, best-effort
     redeemKey,                // async, server-verified
     startTimer,
-    initPaywall,
+    initPaywall,              // async, returns true if access granted
+    showGateScreen,           // exposed for fail-closed use from app bootstrap
     showMessage,
     markAsAdmin,
-    verifyAdminPassword,      // async now (was sync)
-    adminLogin,               // new, returns { success, message? }
+    verifyAdminPassword,      // async
+    adminLogin,               // returns { success, message? }
     getAdminToken,
     getSessionToken,
     signOut,
