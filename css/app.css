@@ -2265,3 +2265,46 @@ body {
 .pt-felt-wrapper.pt-table-active .pt-felt-btn:not(:disabled) {
   opacity: 1;
 }
+
+/* ============================================================
+   Desktop Layout (>= 1024px)
+   Everything above 960px was inheriting the mobile-first base
+   styles, which capped .rt-table-column at 640px and left the
+   .rt-analytics-column as a vertical stack inside its own
+   nested scrollbox. The rules below make the app scale up
+   correctly on laptop/desktop viewports.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .roulette-app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .rt-main-content {
+    display: grid;
+    grid-template-columns: minmax(520px, 1fr) minmax(520px, 1.2fr);
+    gap: 1rem;
+    padding: 0 1rem;
+  }
+
+  .rt-table-column {
+    max-width: none;
+    width: 100%;
+  }
+
+  .rt-analytics-column {
+    max-height: none;
+    overflow-y: visible;
+    /* TODO(human): desktop tiling for the analytics panels. */
+  }
+
+  .rt-sc-number { font-size: 2rem; }
+  .rt-br-value { font-size: 1.25rem; }
+}
+
+@media (min-width: 1440px) {
+  .rt-main-content {
+    grid-template-columns: minmax(600px, 1fr) minmax(600px, 1.25fr);
+    gap: 1.5rem;
+  }
+}
