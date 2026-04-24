@@ -9,7 +9,7 @@
 // Contains: init, showSessionSetup, showSessionChoice, startSession,
 //   resumeSession, loadPreviousTable, launchTable, showCalibrationHub,
 //   showRPMCalibration, showPocketTimingOverlay, showSettingsPanel,
-//   showBankrollPanel, showDataInspector, showKeyGenerator
+//   showBankrollPanel, showDataInspector
 // ============================================================
 
 (function() {
@@ -963,11 +963,6 @@
           <button id="set-import" class="btn-outline">Import Data</button>
           <button id="set-reset" class="btn-outline" style="border-color:#ff3333;color:#ff3333;">Factory Reset</button>
         </div>
-        ${BTHG.Storage.LS.get('is_admin', false) ? `
-        <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(212,175,55,0.2);">
-          <button id="set-keygen" class="btn-outline" style="width:100%;border-color:var(--gold);color:var(--gold);"><i class="fas fa-key"></i> Generate Access Keys</button>
-        </div>
-        ` : ''}
         <button class="rt-overlay-close" style="margin-top:1rem;">Close</button>
       </div>
     `;
@@ -1027,115 +1022,6 @@
         localStorage.clear();
         location.reload();
       }
-    });
-
-    // Admin key generator
-    const keygenBtn = document.getElementById('set-keygen');
-    if (keygenBtn) {
-      keygenBtn.addEventListener('click', () => {
-        overlay.remove();
-        showKeyGenerator();
-      });
-    }
-
-    overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
-  }
-
-  // ============================================================
-  // IN-APP KEY GENERATOR (admin only)
-  // ============================================================
-  function showKeyGenerator() {
-    const overlay = document.createElement('div');
-    overlay.className = 'rt-overlay rt-overlay-visible';
-    overlay.innerHTML = `
-      <div class="rt-overlay-content" style="text-align:left;">
-        <h2 style="color:#d4af37;text-align:center;margin-bottom:1rem;"><i class="fas fa-key"></i> Key Generator</h2>
-
-        <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap;margin-bottom:1.5rem;">
-          <div style="flex:1;min-width:140px;">
-            <label style="display:block;color:#888;font-size:0.75rem;text-transform:uppercase;margin-bottom:0.3rem;">Duration</label>
-            <select id="kg-duration" style="width:100%;padding:0.65rem;background:#1a1a1a;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-size:0.95rem;">
-              <option value="1">1 Day</option>
-              <option value="3">3 Days</option>
-              <option value="7">7 Days</option>
-              <option value="14">14 Days</option>
-              <option value="30">30 Days</option>
-            </select>
-          </div>
-          <button id="kg-generate" class="btn-gold" style="width:auto;padding:0.65rem 1.5rem;white-space:nowrap;">GENERATE</button>
-        </div>
-
-        <div id="kg-result" style="display:none;padding:1rem;background:rgba(0,179,77,0.08);border:1px solid rgba(0,179,77,0.25);border-radius:8px;margin-bottom:1rem;">
-          <p style="color:#5EFF00;font-size:0.75rem;margin-bottom:0.4rem;font-weight:700;">NEW KEY:</p>
-          <div id="kg-key-text" style="font-family:monospace;font-size:0.9rem;color:#fff;word-break:break-all;padding:0.6rem;background:rgba(0,0,0,0.5);border-radius:4px;margin-bottom:0.6rem;"></div>
-          <button id="kg-copy" class="btn-outline" style="font-size:0.8rem;padding:0.4rem 1rem;">Copy to Clipboard</button>
-        </div>
-
-        <div id="kg-history" style="max-height:250px;overflow-y:auto;"></div>
-
-        <button class="rt-overlay-close" style="margin-top:1rem;">Close</button>
-      </div>
-    `;
-
-    document.getElementById('app-root').appendChild(overlay);
-
-    function refreshHistory() {
-      const container = document.getElementById('kg-history');
-      const keys = BTHG.Storage.AdminKeys.getAll();
-      if (keys.length === 0) {
-        container.innerHTML = '<p style="color:#555;font-size:0.8rem;font-style:italic;">No keys generated yet.</p>';
-        return;
-      }
-      container.innerHTML = keys.slice().reverse().map(k => {
-        const created = new Date(k.created).toLocaleDateString();
-        const isExpired = Date.now() > (k.created + k.days * 86400000);
-        const isUsed = BTHG.Storage.Access.isKeyUsed(k.key);
-        let status, sColor;
-        if (isUsed) { status = 'USED'; sColor = '#888'; }
-        else if (isExpired) { status = 'EXPIRED'; sColor = '#ff3333'; }
-        else { status = 'ACTIVE'; sColor = '#5EFF00'; }
-        return `
-          <div style="padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-            <div style="flex:1;min-width:160px;">
-              <div style="font-family:monospace;font-size:0.7rem;color:#aaa;word-break:break-all;">${k.key}</div>
-              <div style="font-size:0.6rem;color:#555;margin-top:2px;">${k.days}d — ${created}</div>
-            </div>
-            <span style="color:${sColor};font-weight:700;font-size:0.65rem;padding:2px 8px;border:1px solid ${sColor};border-radius:3px;">${status}</span>
-          </div>
-        `;
-      }).join('');
-    }
-
-    refreshHistory();
-
-    document.getElementById('kg-generate').addEventListener('click', async () => {
-      const days = parseInt(document.getElementById('kg-duration').value);
-      const btn = document.getElementById('kg-generate');
-      btn.textContent = 'Generating...';
-      btn.disabled = true;
-
-      try {
-        const key = await BTHG.Paywall.generateKey(days);
-        BTHG.Storage.AdminKeys.add({ key, days, created: Date.now(), used: false });
-
-        document.getElementById('kg-result').style.display = 'block';
-        document.getElementById('kg-key-text').textContent = key;
-        refreshHistory();
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
-
-      btn.textContent = 'GENERATE';
-      btn.disabled = false;
-    });
-
-    document.getElementById('kg-copy').addEventListener('click', () => {
-      const keyText = document.getElementById('kg-key-text').textContent;
-      navigator.clipboard.writeText(keyText).then(() => {
-        const btn = document.getElementById('kg-copy');
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000);
-      });
     });
 
     overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
