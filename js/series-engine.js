@@ -245,7 +245,13 @@
       this.finalEightJustHit.clear();
       this.finalActivated = false;
       this.trinityMissStreak = 0;
-      // Keep: seriesCount, seriesHistory, seriesAverage, lifetimeSpins, sideBetAgo, sideBetHits
+      // Reset the outside-bet counters too, so they zero out with the board
+      // instead of carrying over from the previous series.
+      for (const label of Object.keys(BTHG.SIDE_BETS)) {
+        this.sideBetAgo[label] = 0;
+        this.sideBetHits[label] = 0;
+      }
+      // Keep: seriesCount, seriesHistory, seriesAverage, lifetimeSpins
     }
 
     // ---- Trinity Multiplier ------------------------------------
