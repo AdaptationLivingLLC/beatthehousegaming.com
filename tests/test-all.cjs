@@ -350,10 +350,15 @@ assert(eng2.cycleStartSpin === sessionBefore, 'New cycle starts at the current s
 // Discard wipes ONLY the board but keeps learned average + saved series
 const savedAvg = eng2.seriesAverage;
 eng2.recordSpin(7); eng2.recordSpin(8);
+// Before discard, outside-bet counters have accumulated
+assert(Object.values(eng2.sideBetHits).some(v => v > 0), 'Side-bet hit counters accumulated before discard');
 eng2.discardSeries();
 assert(eng2.totalSpins === 0, 'Discard wipes the live board to spin 1');
 assert(eng2.history.length === 0, 'Discard clears the live history');
 assert(eng2.seriesAverage === savedAvg, 'Discard KEEPS the learned table average');
+// Outside counters (red/black, odd/even, 1-18, 19-36...) must reset on discard
+assert(Object.values(eng2.sideBetHits).every(v => v === 0), 'Discard resets ALL side-bet hit counters to 0');
+assert(Object.values(eng2.sideBetAgo).every(v => v === 0), 'Discard resets ALL side-bet ago counters to 0');
 
 // ============================================================
 // TEST 5: Trinity Progression

@@ -60,16 +60,21 @@
       // Trinity
       this.trinityMissStreak = 0;
 
-      // Side bets
+      // Side bets (red/black, odd/even, 1-18, 19-36, dozens, columns)
+      this._resetSideBets();
+
+      // Callbacks
+      this._listeners = [];
+    }
+
+    // Zero every outside-bet counter (ago since last hit + hit tally).
+    _resetSideBets() {
       this.sideBetAgo = {};
       this.sideBetHits = {};
       for (const label of Object.keys(BTHG.SIDE_BETS)) {
         this.sideBetAgo[label] = 0;
         this.sideBetHits[label] = 0;
       }
-
-      // Callbacks
-      this._listeners = [];
     }
 
     onChange(fn) { this._listeners.push(fn); }
@@ -265,8 +270,10 @@
     }
 
     // FULL wipe of the live board back to spin 1 (explicit user "discard /
-    // start fresh" only). Keeps the table's learned data: seriesCount,
-    // seriesHistory, seriesAverage, lifetimeSpins, side bets.
+    // start fresh" only). Clears the on-screen counters too — including the
+    // outside-bet (red/black/odd/1-18/19-36) tallies, which must NOT carry over
+    // from a previous session on a reset. Keeps only the table's LEARNED data:
+    // seriesCount, seriesHistory, seriesAverage, lifetimeSpins.
     _resetForNewSeries() {
       for (const num of this.numbers) {
         num.hits = 0;
@@ -282,6 +289,7 @@
       this.finalEightJustHit.clear();
       this.finalActivated = false;
       this.trinityMissStreak = 0;
+      this._resetSideBets();
     }
 
     // ---- Trinity Multiplier ------------------------------------
