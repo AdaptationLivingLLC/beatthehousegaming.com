@@ -401,6 +401,27 @@
       return data;
     }
 
+    /**
+     * SAVE & KEEP COUNTING: snapshot the CURRENT (incomplete) series to history
+     * WITHOUT resetting — the spin count keeps going exactly where it is. The
+     * series isn't finished, so it does NOT count toward the completion average.
+     */
+    saveSnapshot(fusionSnapshot, machineId, casino) {
+      const data = this.getSeriesDataForSave('snapshot', fusionSnapshot, machineId, casino);
+      this._emit('snapshotSaved', data);
+      return data;
+    }
+
+    /**
+     * DISCARD: throw away the current in-progress series WITHOUT saving and
+     * start fresh at spin 1. Keeps the table's learned average + the history of
+     * already-completed series (you don't lose the rhythm you've learned).
+     */
+    discardSeries() {
+      this._resetForNewSeries();
+      this._emit('seriesDiscarded', {});
+    }
+
     // ---- Last N spins -------------------------------------------
     getLastSpins(n) {
       return this.history.slice(-n);

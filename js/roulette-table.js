@@ -452,48 +452,76 @@
       const overlay = document.createElement('div');
       overlay.className = 'rt-overlay rt-overlay-visible';
       const hit = this.engine.getUniqueHitCount();
-      const remaining = this.engine.getRemainingCount();
+      const spins = this.engine.totalSpins;
+      const fusionSnapshot = this.fusion.toJSON();
+      const machineId = BTHG._currentMachineId || 'default';
+      const casino = BTHG._currentCasino || 'Unknown';
+
       overlay.innerHTML = `
-        <div class="rt-overlay-content">
+        <div class="rt-overlay-content" style="max-width:460px;">
           <div class="rt-celebrate-icon" style="color:var(--gold);"><i class="fas fa-flag-checkered"></i></div>
-          <h2 style="color:var(--gold);">End Current Series?</h2>
-          <p style="color:#aaa;margin:0.75rem 0;">This saves all data from this series (${hit}/38 hit, ${this.engine.totalSpins} spins) and starts a new series.</p>
-          <p style="color:#888;font-size:0.85rem;margin-bottom:1rem;">Tracking will continue — spin history, side bets, and calibrations carry over.</p>
-          <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
-            <button class="btn-gold" id="confirm-end-series" style="width:auto;padding:0.7rem 2rem;">Save & End Series</button>
-            <button class="btn-outline" id="cancel-end-series" style="padding:0.7rem 2rem;">Cancel</button>
+          <h2 style="color:var(--gold);">End / Save This Series</h2>
+          <p style="color:#aaa;margin:0.4rem 0 1rem;">${hit}/38 numbers hit · ${spins} spins this series. What do you want to do?</p>
+          <div style="display:flex;flex-direction:column;gap:0.6rem;text-align:left;">
+            <button class="btn-gold" id="es-save-new" style="padding:0.7rem 1rem;line-height:1.3;">
+              <strong>Save &amp; Start New Series</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#3a2f00;">Bank this series into history. Spin count resets to 1. Your table average keeps building.</span>
+            </button>
+            <button class="btn-outline" id="es-save-keep" style="padding:0.7rem 1rem;line-height:1.3;">
+              <strong>Save &amp; Keep Counting</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#999;">Save a snapshot to history but DON'T reset — keep counting right where you left off.</span>
+            </button>
+            <button class="btn-outline" id="es-discard" style="padding:0.7rem 1rem;line-height:1.3;border-color:#a33;color:#e88;">
+              <strong>Discard &amp; Start Over</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#a77;">Throw this series away (not saved). Fresh start at spin 1. Keeps your learned table average.</span>
+            </button>
+            <button class="btn-outline" id="es-cancel" style="padding:0.55rem 1rem;line-height:1.3;">
+              <strong>Cancel</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#999;">Go back — nothing changes.</span>
+            </button>
           </div>
         </div>
       `;
       this.container.appendChild(overlay);
+      const close = () => overlay.remove();
 
-      document.getElementById('confirm-end-series').addEventListener('click', () => {
-        const fusionSnapshot = this.fusion.toJSON();
-        const machineId = BTHG._currentMachineId || 'default';
-        const casino = BTHG._currentCasino || 'Unknown';
+      // Save & Start New Series — completes + banks the series, resets to spin 1
+      document.getElementById('es-save-new').addEventListener('click', () => {
         const seriesData = this.engine.manualEndSeries(fusionSnapshot, machineId, casino);
-
-        // Save to IndexedDB
         BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
-          this.update();
-          this._saveState();
-          overlay.remove();
-          this._showSeriesEndConfirmation(seriesData);
+          this.update(); this._saveState(); close();
+          this._showSeriesEndConfirmation(seriesData, 'Series saved — new series started at spin 1.');
         });
       });
 
-      document.getElementById('cancel-end-series').addEventListener('click', () => overlay.remove());
+      // Save & Keep Counting — snapshot to history, do NOT reset
+      document.getElementById('es-save-keep').addEventListener('click', () => {
+        const seriesData = this.engine.saveSnapshot(fusionSnapshot, machineId, casino);
+        BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
+          this.update(); this._saveState(); close();
+          this._showSeriesEndConfirmation(seriesData, 'Snapshot saved — still counting where you left off.');
+        });
+      });
+
+      // Discard & Start Over — drop current series (no save), reset to spin 1
+      document.getElementById('es-discard').addEventListener('click', () => {
+        this.engine.discardSeries();
+        this.update(); this._saveState(); close();
+        this._showToast('Series discarded — fresh start at spin 1.', 2500);
+      });
+
+      document.getElementById('es-cancel').addEventListener('click', close);
     }
 
-    _showSeriesEndConfirmation(data) {
+    _showSeriesEndConfirmation(data, message) {
       const overlay = document.createElement('div');
       overlay.className = 'rt-overlay';
       overlay.innerHTML = `
         <div class="rt-overlay-content">
           <div class="rt-celebrate-icon" style="color:var(--final-green);"><i class="fas fa-check-circle"></i></div>
-          <h2 style="color:var(--final-green);">Series Saved</h2>
+          <h2 style="color:var(--final-green);">Saved</h2>
           <p style="color:#aaa;margin:0.5rem 0;">Series #${data.seriesNumber} — ${data.totalSpins} spins, ${data.uniqueHit}/38 numbers hit</p>
-          <p style="color:#888;font-size:0.85rem;">New series started. All tracking continues.</p>
+          <p style="color:#888;font-size:0.85rem;">${message || 'All tracking continues.'}</p>
           <button class="rt-overlay-close" style="margin-top:1rem;">Continue Playing</button>
         </div>
       `;
