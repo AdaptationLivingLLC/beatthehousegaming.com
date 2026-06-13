@@ -6,8 +6,8 @@
 //   data persistence, settings (parseFloat bets, bet dropdown),
 //   bankroll panel, data inspector, key generator,
 //   pocket timing feeds into series engine, wheel direction toggle
-// Contains: init, showSessionSetup, showSessionChoice, startSession,
-//   resumeSession, loadPreviousTable, launchTable, showCalibrationHub,
+// Contains: init, showSessionSetup, startSession,
+//   loadPreviousTable, launchTable, showCalibrationHub,
 //   showRPMCalibration, showPocketTimingOverlay, showSettingsPanel,
 //   showBankrollPanel, showDataInspector
 // ============================================================
@@ -27,12 +27,11 @@
       if (adminHandled) return;
     }
 
-    const saved = BTHG.Storage.Session.load();
-    if (saved && saved.engine && saved.engine.totalSpins > 0) {
-      showSessionChoice(saved);
-    } else {
-      showSessionSetup();
-    }
+    // Continue-from-previous-session removed: consecutive spin tracking only
+    // works start-to-finish — a gap in the middle ruins the read — so we always
+    // begin a fresh session. Past spins + series records stay in IndexedDB and
+    // are used only as historical data for calibration.
+    showSessionSetup();
   }
 
   async function showSessionSetup() {
@@ -121,49 +120,10 @@
     });
   }
 
-  function showSessionChoice(saved) {
-    const root = document.getElementById('app-root');
-    const spins = saved.engine.totalSpins || 0;
-    const seriesCount = saved.engine.seriesCount || 0;
-    root.innerHTML = `
-      <div class="session-setup">
-        <div class="setup-logo">
-          <div class="css-logo">ROULETTE<br>BREAKER</div>
-          <p class="setup-subtitle">Professional Roulette Analytics</p>
-        </div>
-        <div class="setup-form">
-          <div class="session-resume-info">
-            <p style="color:#d4af37;font-weight:700;margin-bottom:0.5rem;">Previous Session Found</p>
-            <p style="color:#aaa;font-size:0.9rem;">${spins} spins recorded | ${seriesCount} series completed</p>
-            ${saved.casino ? `<p style="color:#666;font-size:0.8rem;margin-top:0.25rem;">${saved.casino} — ${saved.machineId || 'Unknown table'}</p>` : ''}
-          </div>
-          <button id="btn-continue" class="btn-gold">Continue Session</button>
-          <button id="btn-new" class="btn-outline" style="margin-top:1rem;">Start New Session</button>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('btn-continue').addEventListener('click', () => {
-      resumeSession(saved);
-    });
-
-    document.getElementById('btn-new').addEventListener('click', () => {
-      // Don't clear session data — it's still in IndexedDB for future loading
-      BTHG.Storage.Session.clear();
-      showSessionSetup();
-    });
-  }
-
   async function loadPreviousTable(casino, machineId) {
-    // Check if there's an active session for this exact table
-    const saved = BTHG.Storage.Session.load();
-    if (saved && saved.machineId === machineId && saved.engine && saved.engine.totalSpins > 0) {
-      // Resume the active session directly
-      resumeSession(saved);
-      return;
-    }
-
-    // No active session — load from IndexedDB history
+    // Continue-from-previous-session removed — never resume a live session.
+    // The table's saved spins + series records still load below, used only as
+    // historical data for calibration.
     BTHG._currentCasino = casino;
     BTHG._currentMachineId = machineId;
 
@@ -225,27 +185,6 @@
     loadCalibrations(machineId);
 
     launchTable();
-  }
-
-  function resumeSession(saved) {
-    BTHG._currentMachineId = saved.machineId || 'default';
-    BTHG._currentCasino = saved.casino || 'Unknown';
-
-    engine = new BTHG.SeriesEngine();
-    engine.fromJSON(saved.engine);
-
-    bankroll = new BTHG.BankrollManager();
-    bankroll.fromJSON(saved.bankroll);
-
-    fusion = new BTHG.CalibratorDataFusion();
-    fusion.fromJSON(saved.fusion);
-
-    predictor = new BTHG.PredictionEngine();
-
-    launchTable();
-
-    // Restore betting toggle state
-    if (tableUI) tableUI.restoreBettingState(saved);
   }
 
   /**
