@@ -452,40 +452,28 @@
       const overlay = document.createElement('div');
       overlay.className = 'rt-overlay rt-overlay-visible';
       const hit = this.engine.getUniqueHitCount();
-      const remaining = this.engine.getRemainingCount();
-      const spins = this.engine.totalSpins - this.engine.cycleStartSpin;
-      const outstanding = this.engine.getOutstandingNumbers();
+      const spins = this.engine.totalSpins;
       const fusionSnapshot = this.fusion.toJSON();
       const machineId = BTHG._currentMachineId || 'default';
       const casino = BTHG._currentCasino || 'Unknown';
 
-      // Human label for outstanding pockets (37 => "00")
-      const fmtNum = (v) => (v === 37 ? '00' : String(v));
-      const overdueList = outstanding
-        .map(o => `${fmtNum(o.value)} (${o.ago} ago)`)
-        .join(', ');
-
       overlay.innerHTML = `
-        <div class="rt-overlay-content" style="max-width:480px;">
+        <div class="rt-overlay-content" style="max-width:460px;">
           <div class="rt-celebrate-icon" style="color:var(--gold);"><i class="fas fa-flag-checkered"></i></div>
           <h2 style="color:var(--gold);">End / Save This Series</h2>
-          <p style="color:#aaa;margin:0.4rem 0 0.8rem;">${hit}/${this.engine.numbers.length} numbers hit · ${spins} spins this cycle · <strong style="color:#e88;">${remaining} still outstanding</strong>. What do you want to do?</p>
+          <p style="color:#aaa;margin:0.4rem 0 1rem;">${hit}/38 numbers hit · ${spins} spins this series. What do you want to do?</p>
           <div style="display:flex;flex-direction:column;gap:0.6rem;text-align:left;">
-            <button class="btn-gold" id="es-early" style="padding:0.7rem 1rem;line-height:1.3;">
-              <strong>End Early — Save as Completed${remaining > 0 ? ` (log ${remaining} overdue)` : ''}</strong>
-              <span style="display:block;font-weight:400;font-size:0.76rem;color:#3a2f00;">Bank this as a finished series now. The ${remaining} outstanding number${remaining === 1 ? '' : 's'}${overdueList ? ` — ${overdueList}` : ''} are stored for future calibration and kept OUT of your betting average. Keeps counting.</span>
+            <button class="btn-gold" id="es-save-new" style="padding:0.7rem 1rem;line-height:1.3;">
+              <strong>Save &amp; Start New Series</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#3a2f00;">Bank this series into history. Spin count resets to 1. Your table average keeps building.</span>
             </button>
-            <button class="btn-outline" id="es-snapshot" style="padding:0.7rem 1rem;line-height:1.3;">
-              <strong>Save Snapshot &amp; Keep Counting</strong>
-              <span style="display:block;font-weight:400;font-size:0.76rem;color:#999;">Save where you are to history WITHOUT ending. Nothing resets — keep counting right where you left off.</span>
-            </button>
-            <button class="btn-outline" id="es-complete" style="padding:0.7rem 1rem;line-height:1.3;">
-              <strong>Save as Completed &amp; Add to Average</strong>
-              <span style="display:block;font-weight:400;font-size:0.76rem;color:#999;">Bank this series AND feed its length into the table average. Use only if it genuinely ran a full cycle. Keeps counting.</span>
+            <button class="btn-outline" id="es-save-keep" style="padding:0.7rem 1rem;line-height:1.3;">
+              <strong>Save &amp; Keep Counting</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#999;">Save a snapshot to history but DON'T reset — keep counting right where you left off.</span>
             </button>
             <button class="btn-outline" id="es-discard" style="padding:0.7rem 1rem;line-height:1.3;border-color:#a33;color:#e88;">
-              <strong>Discard This Session — Start Fresh</strong>
-              <span style="display:block;font-weight:400;font-size:0.76rem;color:#a77;">Wipe ONLY the current board (not saved). Fresh start at spin 1. Keeps every saved series + your learned average.</span>
+              <strong>Discard &amp; Start Over</strong>
+              <span style="display:block;font-weight:400;font-size:0.76rem;color:#a77;">Throw this series away (not saved). Fresh start at spin 1. Keeps your learned table average.</span>
             </button>
             <button class="btn-outline" id="es-cancel" style="padding:0.55rem 1rem;line-height:1.3;">
               <strong>Cancel</strong>
@@ -497,20 +485,17 @@
       this.container.appendChild(overlay);
       const close = () => overlay.remove();
 
-      // End Early — bank as completed, log overdue numbers for calibration, keep counting
-      document.getElementById('es-early').addEventListener('click', () => {
-        const seriesData = this.engine.endSeriesEarly(fusionSnapshot, machineId, casino);
+      // Save & Start New Series — completes + banks the series, resets to spin 1
+      document.getElementById('es-save-new').addEventListener('click', () => {
+        const seriesData = this.engine.manualEndSeries(fusionSnapshot, machineId, casino);
         BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
           this.update(); this._saveState(); close();
-          const note = seriesData.outstandingCount > 0
-            ? `Saved as completed. ${seriesData.outstandingCount} overdue number${seriesData.outstandingCount === 1 ? '' : 's'} logged for calibration (kept out of the average). Still counting.`
-            : 'Saved as completed. Still counting.';
-          this._showSeriesEndConfirmation(seriesData, note);
+          this._showSeriesEndConfirmation(seriesData, 'Series saved — new series started at spin 1.');
         });
       });
 
-      // Save Snapshot & Keep Counting — checkpoint to history, do NOT reset
-      document.getElementById('es-snapshot').addEventListener('click', () => {
+      // Save & Keep Counting — snapshot to history, do NOT reset
+      document.getElementById('es-save-keep').addEventListener('click', () => {
         const seriesData = this.engine.saveSnapshot(fusionSnapshot, machineId, casino);
         BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
           this.update(); this._saveState(); close();
@@ -518,20 +503,11 @@
         });
       });
 
-      // Save as Completed & Add to Average — true completion, feeds the average
-      document.getElementById('es-complete').addEventListener('click', () => {
-        const seriesData = this.engine.manualEndSeries(fusionSnapshot, machineId, casino);
-        BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
-          this.update(); this._saveState(); close();
-          this._showSeriesEndConfirmation(seriesData, 'Series banked and added to your table average. Still counting.');
-        });
-      });
-
-      // Discard This Session — drop current board only (no save), reset to spin 1
+      // Discard & Start Over — drop current series (no save), reset to spin 1
       document.getElementById('es-discard').addEventListener('click', () => {
         this.engine.discardSeries();
         this.update(); this._saveState(); close();
-        this._showToast('Session cleared — fresh start at spin 1. Saved series + average kept.', 2500);
+        this._showToast('Series discarded — fresh start at spin 1.', 2500);
       });
 
       document.getElementById('es-cancel').addEventListener('click', close);
