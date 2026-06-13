@@ -149,12 +149,32 @@ BTHG.clamp = function(val, min, max) {
 };
 
 // ---- Valid Bet Amounts ----------------------------------------
-// $0.50 intervals up to $1, $1 intervals up to $10, $5 intervals up to $100
-BTHG.BET_AMOUNTS = [0.50, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+// $0.25 (quarter tables), $0.50, $1 intervals to $10, $5 intervals to $100
+BTHG.BET_AMOUNTS = [0.25, 0.50, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+// ---- Currency ------------------------------------------------
+// Native, sticky currency — the user picks one and ALL amounts stay in it
+// through betting. No conversion math: a S$5 minimum is S$5, not a converted
+// figure. Symbol-only relabel. Extend this list to add more currencies.
+BTHG.CURRENCIES = {
+  USD: { code: 'USD', symbol: '$',  name: 'US Dollar' },
+  SGD: { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  INR: { code: 'INR', symbol: '₹',  name: 'Indian Rupee' },
+};
+BTHG.currentCurrency = 'USD'; // default
+
+BTHG.setCurrency = function(code) {
+  if (BTHG.CURRENCIES[code]) BTHG.currentCurrency = code;
+};
+
+BTHG.currencySymbol = function() {
+  return (BTHG.CURRENCIES[BTHG.currentCurrency] || BTHG.CURRENCIES.USD).symbol;
+};
 
 BTHG.formatMoney = function(amount) {
-  if (amount % 1 !== 0) return '$' + amount.toFixed(2);
-  return '$' + amount;
+  const sym = BTHG.currencySymbol();
+  if (amount % 1 !== 0) return sym + amount.toFixed(2);
+  return sym + amount;
 };
 
 window.BTHG = BTHG;

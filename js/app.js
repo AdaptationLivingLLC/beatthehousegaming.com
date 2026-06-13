@@ -17,27 +17,15 @@
 
   let engine, bankroll, fusion, predictor, tableUI;
 
-  // Both initPaywall() and initAdminPanel() are async; calling them
-  // without await leaves `!<Promise>` which is always false, so gates
-  // never fire. Every step below must be awaited.
   async function init() {
-    const access = await BTHG.Paywall.initPaywall();
-
+    // ACCESS IS OPEN — Stripe is disconnected, so there is NO paywall gate and
+    // no access-expiry timer. The app loads straight into setup. All session
+    // data persists locally on the device (IndexedDB + localStorage).
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin')) {
       const adminHandled = await BTHG.AdminKeygen.initAdminPanel();
       if (adminHandled) return;
     }
-
-    if (!access) {
-      if (typeof BTHG.Paywall.showGateScreen === 'function') {
-        BTHG.Paywall.showGateScreen();
-      }
-      return;
-    }
-
-    const timerEl = document.getElementById('access-timer');
-    if (timerEl) BTHG.Paywall.startTimer(timerEl);
 
     const saved = BTHG.Storage.Session.load();
     if (saved && saved.engine && saved.engine.totalSpins > 0) {
@@ -1187,9 +1175,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     init().catch((err) => {
       console.error('Bootstrap failed:', err);
-      if (typeof BTHG.Paywall.showGateScreen === 'function') {
-        BTHG.Paywall.showGateScreen();
-      }
+      // No paywall — on any failure, surface setup so the user is never blocked.
+      try { showSessionSetup(); } catch (e) { console.error(e); }
     });
   });
 

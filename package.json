@@ -6,7 +6,8 @@
   "description": "Beat The House Gaming (BTHG) — Roulette Breaker, the physics-based roulette analytics app, plus marketing site and serverless backend.",
   "scripts": {
     "dev": "vercel dev",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "test": "node tests/test-all.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

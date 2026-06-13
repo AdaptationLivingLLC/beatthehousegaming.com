@@ -785,9 +785,13 @@
         return;
       }
 
-      const nums = result.recommendedNumbers.map(n => {
-        const color = BTHG.colorForNumber(n);
-        return `<span class="rt-pred-num rt-${color}">${BTHG.displayNumber(n)}</span>`;
+      // recommendedNumbers are physical WHEEL POSITION indices (0-37), not pocket
+      // numbers — map each through the wheel layout to the actual pocket number.
+      const order = BTHG.WHEEL_LAYOUTS.american;
+      const nums = result.recommendedNumbers.map(idx => {
+        const num = order[idx];
+        const color = BTHG.colorForNumber(num);
+        return `<span class="rt-pred-num rt-${color}">${BTHG.displayNumber(num)}</span>`;
       }).join('');
 
       bar.innerHTML = `
@@ -1058,18 +1062,12 @@
         h += `<div class="rt-intel-row"><span class="rt-intel-label">Miss Streak</span><span class="rt-intel-value">${e.trinityMissStreak}</span></div>`;
       }
 
-      // Top 5 coldest unhit numbers
-      if (e.totalSpins > 5) {
-        const cold = [...e.numbers].filter(n => n.hits === 0).sort((a, b) => b.ago - a.ago).slice(0, 5);
-        if (cold.length > 0 && cold.length <= 20) {
-          h += `<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid rgba(0,140,255,0.15);"><span class="rt-intel-label" style="color:#008CFF;display:block;margin-bottom:0.3rem;">Most Overdue (Unhit)</span><div style="display:flex;gap:3px;flex-wrap:wrap;">`;
-          for (const n of cold) {
-            const c = BTHG.colorForNumber(n.value);
-            h += `<span class="rt-spin-chip rt-${c}" style="font-size:0.7rem;" title="${n.ago} spins ago">${BTHG.displayNumber(n.value)}</span>`;
-          }
-          h += '</div></div>';
-        }
-      }
+      // NOTE: "Most Overdue (Unhit)" panel removed — it was meaningless.
+      // Every unhit number's `ago` increments on every spin, so all unhit
+      // numbers are mathematically tied (equally overdue). The old sort did
+      // nothing and just displayed the lowest-numbered unhit pockets.
+      // The real signal (numbers due relative to the table's learned average
+      // completion point) is being built in the timing engine — see worklog.
 
       h += '</div>';
       el.innerHTML = h;

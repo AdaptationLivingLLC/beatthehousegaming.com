@@ -116,7 +116,8 @@ assert(BTHG.angleToIndex(0, 38) === 0, 'angleToIndex(0) = 0');
 assert(BTHG.angleToIndex(Math.PI, 38) === 19, 'angleToIndex(π) = 19 (halfway around)');
 
 // Bet amounts
-assert(BTHG.BET_AMOUNTS[0] === 0.50, 'First bet amount is $0.50');
+assert(BTHG.BET_AMOUNTS[0] === 0.25, 'First bet amount is $0.25 (quarter tables)');
+assert(BTHG.BET_AMOUNTS.includes(0.50), 'Bet amounts include $0.50');
 assert(BTHG.BET_AMOUNTS[BTHG.BET_AMOUNTS.length - 1] === 100, 'Last bet amount is $100');
 assert(BTHG.BET_AMOUNTS.includes(5), 'Bet amounts include $5');
 assert(BTHG.BET_AMOUNTS.includes(1), 'Bet amounts include $1');

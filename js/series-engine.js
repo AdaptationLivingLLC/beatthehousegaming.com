@@ -43,7 +43,10 @@
       this.finalEightAges = {};    // { numberValue: age }
       this.finalEightFirstHit = new Set();
       this.finalEightJustHit = new Set();
-      this.finalTargetCount = C.FINAL_TARGET_COUNT;
+      // Configurable coverage: how many unhit numbers to cover (+ 0/00 always).
+      // Preserved across series/table resets so it stays a user setting, not
+      // something that snaps back to the default every reset.
+      this.finalTargetCount = this.finalTargetCount || C.FINAL_TARGET_COUNT;
       this.finalActivated = false;
       this.isAutoAddEnabled = true;
 
@@ -69,6 +72,15 @@
 
     getNumber(val) {
       return this.numbers.find(n => n.value === val);
+    }
+
+    // Set how many unhit numbers to cover (e.g. 6, 7, 8). 0 and 00 are ALWAYS
+    // covered on top of this — they're the mandatory security, not part of N.
+    // Lower N = enter later / risk less per spin; higher N = enter earlier.
+    setCoverageCount(n) {
+      n = Math.floor(Number(n));
+      if (!Number.isFinite(n)) return;
+      this.finalTargetCount = Math.max(1, Math.min(20, n));
     }
 
     recordSpin(number) {
@@ -174,17 +186,14 @@
     }
 
     _pickAutoFillCandidate() {
-      // Pick unhit number with highest ago (longest since hit or never hit)
+      // ONLY ever auto-fill with genuinely UNHIT numbers (longest since seen).
+      // NEVER pad coverage with already-hit numbers — that was the bug that put
+      // numbers the user should not bet back onto the board. If none remain
+      // unhit, return null and coverage simply shrinks as the series completes.
       const unhit = this.numbers
         .filter(n => n.hits === 0 && !this.finalEight.includes(n.value))
         .sort((a, b) => b.ago - a.ago);
-      if (unhit.length > 0) return unhit[0].value;
-
-      // Fallback: oldest non-Final8 number
-      const candidates = this.numbers
-        .filter(n => !this.finalEight.includes(n.value))
-        .sort((a, b) => b.ago - a.ago);
-      return candidates.length > 0 ? candidates[0].value : null;
+      return unhit.length > 0 ? unhit[0].value : null;
     }
 
     _evaluateState() {
