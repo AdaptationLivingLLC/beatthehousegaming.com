@@ -289,8 +289,12 @@ assert(eng.seriesCount === 1, 'Series count incremented to 1');
 assert(eng.seriesHistory.length === 1, 'Series history has 1 entry');
 assert(eng.seriesHistory[0] === 38, 'Series history records 38 spins');
 assert(eng.seriesAverage === 38, 'Series average = 38');
-assert(eng.totalSpins === 0, 'After completion: totalSpins reset to 0');
-assert(eng.getRemainingCount() === 38, 'After completion: 38 remaining again');
+// CONTINUOUS SESSION (backbone): completion logs the series number but must NOT
+// wipe the live session. Spin counter, history, and per-number hits keep going.
+assert(eng.totalSpins === 38, 'After completion: totalSpins KEEPS counting (continuous session, not reset)');
+assert(eng.history.length === 38, 'After completion: spin history is PRESERVED');
+assert(eng.numbers.every(n => n.hits > 0), 'After completion: per-number hit data is PRESERVED');
+assert(eng.getRemainingCount() === 38, 'After completion: new cycle has 38 remaining to re-detect the next series');
 assert(eng.lifetimeSpins === 38, 'Lifetime spins = 38');
 
 // Second series — add some duplicates to make it longer
@@ -305,6 +309,51 @@ assert(eng.seriesCount === 2, 'Series count = 2');
 assert(eng.seriesHistory[1] === 40, 'Second series took 40 spins (38 + 2 dupes)');
 assert(eng.seriesAverage === 39, 'Average of 38 and 40 = 39');
 assert(eng.lifetimeSpins === 78, 'Lifetime = 38 + 40 = 78');
+
+// ============================================================
+// TEST 4b: End Early (save as completed, log overdue, keep out of average)
+// ============================================================
+console.log('\n\x1b[36m═══ TEST 4b: End Series Early ═══\x1b[0m');
+
+let eng2 = new BTHG.SeriesEngine();
+// Hit 0..35 once (36 numbers), leave 36 and 37(=00) outstanding, plus some dupes
+for (let i = 0; i <= 35; i++) eng2.recordSpin(i);
+eng2.recordSpin(5); eng2.recordSpin(5); // dupes so 36 and 37 are clearly overdue
+const avgBefore = eng2.seriesAverage;
+const histLenBefore = eng2.seriesHistory.length;
+const sessionBefore = eng2.totalSpins;
+const lifeBefore = eng2.lifetimeSpins;
+
+const outstanding = eng2.getOutstandingNumbers();
+assert(outstanding.length === 2, 'Two numbers outstanding before early end');
+assert(outstanding.map(o => o.value).sort((a,b)=>a-b).join(',') === '36,37', 'Outstanding numbers are 36 and 37(00)');
+assert(outstanding.every(o => o.ago > 0), 'Outstanding numbers carry an overdue (ago) count');
+
+let earlyEvent = null;
+eng2.onChange((ev, d) => { if (ev === 'seriesEndedEarly') earlyEvent = d; });
+const rec = eng2.endSeriesEarly(null, 'm1', 'TestCasino');
+
+assert(rec.endedEarly === true, 'Record flagged endedEarly');
+assert(rec.completed === true, 'Record flagged completed');
+assert(rec.outstandingCount === 2, 'Record logs 2 outstanding numbers');
+assert(rec.outstanding.length === 2, 'Record carries the outstanding calibration payload');
+assert(earlyEvent !== null, 'seriesEndedEarly event fired');
+// Average must be UNTOUCHED by an early end
+assert(eng2.seriesAverage === avgBefore, 'Early end does NOT change the betting average');
+assert(eng2.seriesHistory.length === histLenBefore, 'Early end does NOT push to seriesHistory');
+// Session is continuous; cycle re-armed
+assert(eng2.totalSpins === sessionBefore, 'Early end keeps the continuous session spin count');
+assert(eng2.lifetimeSpins === lifeBefore, 'Early end does not alter lifetime spins');
+assert(eng2.getRemainingCount() === 38, 'Early end re-arms a fresh cycle (38 remaining)');
+assert(eng2.cycleStartSpin === sessionBefore, 'New cycle starts at the current session spin');
+
+// Discard wipes ONLY the board but keeps learned average + saved series
+const savedAvg = eng2.seriesAverage;
+eng2.recordSpin(7); eng2.recordSpin(8);
+eng2.discardSeries();
+assert(eng2.totalSpins === 0, 'Discard wipes the live board to spin 1');
+assert(eng2.history.length === 0, 'Discard clears the live history');
+assert(eng2.seriesAverage === savedAvg, 'Discard KEEPS the learned table average');
 
 // ============================================================
 // TEST 5: Trinity Progression

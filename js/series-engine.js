@@ -38,6 +38,13 @@
       this.seriesHistory = [];     // array of completed series spin counts
       this.seriesAverage = 0;      // running average cycle length for this table
 
+      // Per-CYCLE detection layer, decoupled from the continuous session above.
+      // The session (history / totalSpins / per-number hits) NEVER wipes on a
+      // series completion — only this cycle layer resets, so the NEXT series can
+      // be detected and the average keeps learning while the user plays on.
+      this.cycleHits = new Set();   // distinct pockets hit in the CURRENT cycle
+      this.cycleStartSpin = 0;      // totalSpins value when the current cycle began
+
       // Final 8 state
       this.finalEight = [];        // array of number values in Final 8
       this.finalEightAges = {};    // { numberValue: age }
@@ -106,6 +113,9 @@
         hitNum.ago = 0;
         hitNum.hits++;
       }
+
+      // Mark this pocket as hit in the current cycle (drives series detection)
+      this.cycleHits.add(number);
 
       // Update side bets
       this._updateSideBets(number);
@@ -196,8 +206,13 @@
       return unhit.length > 0 ? unhit[0].value : null;
     }
 
+    // Numbers not yet hit IN THE CURRENT CYCLE (drives Final-N + completion).
+    _cycleUnhit() {
+      return this.numbers.filter(n => !this.cycleHits.has(n.value));
+    }
+
     _evaluateState() {
-      const unhit = this.numbers.filter(n => n.hits === 0);
+      const unhit = this._cycleUnhit();
       const target = this.finalTargetCount;
 
       if (unhit.length === target + 1 && !this.finalActivated) {
@@ -215,23 +230,43 @@
       }
 
       if (unhit.length === 0 && this.finalActivated) {
-        // Series complete!
+        // Series complete! Log the series length for the table average, then
+        // re-arm the cycle WITHOUT wiping the continuous session.
+        const seriesSpins = this.totalSpins - this.cycleStartSpin;
         this.seriesCount++;
-        this.seriesHistory.push(this.totalSpins);
+        this.seriesHistory.push(seriesSpins);
         this.seriesAverage = Math.round(
           this.seriesHistory.reduce((a, b) => a + b, 0) / this.seriesHistory.length
         );
         this._emit('seriesComplete', {
           seriesCount: this.seriesCount,
-          totalSpins: this.totalSpins,
+          totalSpins: seriesSpins,          // length of THIS series (the number that matters)
+          sessionSpins: this.totalSpins,    // continuous session total (keeps climbing)
           lastNumber: this.history[this.history.length - 1],
           seriesAverage: this.seriesAverage
         });
-        // Reset for next series
-        this._resetForNewSeries();
+        // Start the next cycle in place — session data is preserved.
+        this._startNewCycle();
       }
     }
 
+    // Re-arm cycle detection in place, PRESERVING the continuous session
+    // (per-number hits/ago, history, totalSpins, lifetimeSpins, side bets).
+    // Used on series completion and on continuous manual end.
+    _startNewCycle() {
+      this.cycleHits = new Set();
+      this.cycleStartSpin = this.totalSpins;
+      this.finalEight = [];
+      this.finalEightAges = {};
+      this.finalEightFirstHit.clear();
+      this.finalEightJustHit.clear();
+      this.finalActivated = false;
+      this.trinityMissStreak = 0;
+    }
+
+    // FULL wipe of the live board back to spin 1 (explicit user "discard /
+    // start fresh" only). Keeps the table's learned data: seriesCount,
+    // seriesHistory, seriesAverage, lifetimeSpins, side bets.
     _resetForNewSeries() {
       for (const num of this.numbers) {
         num.hits = 0;
@@ -239,13 +274,14 @@
       }
       this.totalSpins = 0;
       this.history = [];
+      this.cycleHits = new Set();
+      this.cycleStartSpin = 0;
       this.finalEight = [];
       this.finalEightAges = {};
       this.finalEightFirstHit.clear();
       this.finalEightJustHit.clear();
       this.finalActivated = false;
       this.trinityMissStreak = 0;
-      // Keep: seriesCount, seriesHistory, seriesAverage, lifetimeSpins, sideBetAgo, sideBetHits
     }
 
     // ---- Trinity Multiplier ------------------------------------
@@ -271,6 +307,8 @@
     // ---- Undo ---------------------------------------------------
     undoLastSpin() {
       if (this.history.length === 0) return false;
+      // Can't undo back across a completed/saved series boundary.
+      if (this.totalSpins <= this.cycleStartSpin) return false;
 
       const last = this.history.pop();
       this.totalSpins--;
@@ -282,6 +320,9 @@
       this._recomputeAgo();
       this._recomputeSideBets();
 
+      // Rebuild the current cycle's hit set from the (continuous) history.
+      this.cycleHits = new Set(this.history.slice(this.cycleStartSpin));
+
       // Recalculate Final 8 state
       this.finalEight = [];
       this.finalEightAges = {};
@@ -290,8 +331,8 @@
       this.finalActivated = false;
       this.trinityMissStreak = 0;
 
-      // Re-evaluate
-      const unhit = this.numbers.filter(n => n.hits === 0);
+      // Re-evaluate against the current cycle
+      const unhit = this._cycleUnhit();
       if (unhit.length <= this.finalTargetCount) {
         this.finalActivated = true;
         this.finalEight = unhit.map(n => n.value);
@@ -335,12 +376,23 @@
     }
 
     // ---- Series Progress ----------------------------------------
+    // Progress toward the NEXT series completion (the countdown clock), measured
+    // per cycle — not lifetime hits, which never reset in a continuous session.
     getUniqueHitCount() {
-      return this.numbers.filter(n => n.hits > 0).length;
+      return this.cycleHits.size;
     }
 
     getRemainingCount() {
-      return this.numbers.filter(n => n.hits === 0).length;
+      return this.numbers.length - this.cycleHits.size;
+    }
+
+    // Numbers that have NOT hit in the current cycle, each with how overdue it
+    // is (`ago` = spins since it last landed). This is the calibration payload
+    // captured when a series is ended early.
+    getOutstandingNumbers() {
+      return this._cycleUnhit()
+        .map(n => ({ value: n.value, ago: n.ago, hits: n.hits }))
+        .sort((a, b) => b.ago - a.ago);
     }
 
     getSeriesAverage() {
@@ -361,8 +413,9 @@
         machineId: machineId || 'default',
         casino: casino || 'Unknown',
         seriesNumber: this.seriesCount,
-        totalSpins: this.totalSpins,
-        spinHistory: [...this.history],
+        totalSpins: this.totalSpins - this.cycleStartSpin,   // spins in THIS series (cycle)
+        sessionSpins: this.totalSpins,                       // continuous session total
+        spinHistory: [...this.history.slice(this.cycleStartSpin)],
         endType: endType,
         timestamp: Date.now(),
         calibration: fusionSnapshot || null,
@@ -387,17 +440,47 @@
     manualEndSeries(fusionSnapshot, machineId, casino) {
       const data = this.getSeriesDataForSave('manual', fusionSnapshot, machineId, casino);
 
-      // Record this series length
+      // Record this series length (cycle-relative), keep the session continuous
       this.seriesCount++;
-      this.seriesHistory.push(this.totalSpins);
+      this.seriesHistory.push(this.totalSpins - this.cycleStartSpin);
       this.seriesAverage = Math.round(
         this.seriesHistory.reduce((a, b) => a + b, 0) / this.seriesHistory.length
       );
 
-      // Reset number tracking for next series, keep everything else
-      this._resetForNewSeries();
+      // Re-arm the next cycle in place — session data is preserved
+      this._startNewCycle();
 
       this._emit('manualSeriesEnd', data);
+      return data;
+    }
+
+    /**
+     * END EARLY: bank the current cycle as a COMPLETED series even though a few
+     * numbers never hit (e.g. the final 2-3 are dragging for hours). Captures
+     * those outstanding numbers and how overdue each is as CALIBRATION data.
+     *
+     * Deliberately kept OUT of the betting average (seriesHistory) — a forced,
+     * short end would otherwise bias the countdown clock to fire early and risk
+     * bets. The session keeps counting; only the cycle re-arms.
+     * Returns the saveable record (incl. `outstanding`) for SeriesDB.
+     */
+    endSeriesEarly(fusionSnapshot, machineId, casino) {
+      const outstanding = this.getOutstandingNumbers();
+      const data = this.getSeriesDataForSave('early', fusionSnapshot, machineId, casino);
+
+      this.seriesCount++;
+      data.seriesNumber = this.seriesCount;
+      data.endedEarly = true;
+      data.completed = true;            // recorded AS a completed series, but flagged
+      data.outstanding = outstanding;   // [{ value, ago, hits }] — overdue numbers
+      data.outstandingCount = outstanding.length;
+      data.seriesSpins = this.totalSpins - this.cycleStartSpin;
+      // NOTE: intentionally NOT pushed to seriesHistory / seriesAverage.
+
+      // Re-arm the next cycle in place — session data is preserved.
+      this._startNewCycle();
+
+      this._emit('seriesEndedEarly', data);
       return data;
     }
 
@@ -437,6 +520,8 @@
         lifetimeSpins: this.lifetimeSpins,
         seriesHistory: this.seriesHistory,
         seriesAverage: this.seriesAverage,
+        cycleHits: [...this.cycleHits],
+        cycleStartSpin: this.cycleStartSpin,
         finalEight: this.finalEight,
         finalEightAges: this.finalEightAges,
         finalEightFirstHit: [...this.finalEightFirstHit],
@@ -462,6 +547,15 @@
       this.lifetimeSpins = data.lifetimeSpins || 0;
       this.seriesHistory = data.seriesHistory || [];
       this.seriesAverage = data.seriesAverage || 0;
+      // Cycle layer. Fall back gracefully for sessions saved before this existed:
+      // reconstruct the cycle from the spins since the last completion boundary.
+      if (Array.isArray(data.cycleHits)) {
+        this.cycleHits = new Set(data.cycleHits);
+        this.cycleStartSpin = data.cycleStartSpin || 0;
+      } else {
+        this.cycleStartSpin = 0;
+        this.cycleHits = new Set(this.history);
+      }
       this.finalEight = data.finalEight || [];
       this.finalEightAges = data.finalEightAges || {};
       this.finalEightFirstHit = new Set(data.finalEightFirstHit || []);
