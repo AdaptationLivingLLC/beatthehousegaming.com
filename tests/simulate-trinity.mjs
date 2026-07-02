@@ -12,7 +12,7 @@ export function simulateSeries(spins, coverageSet, { minUnit, maxUnit }) {
     if (bet.screens > 1) splitAlerts++;
     if (coverageSet.has(n)) {
       const r = t.recordHit();
-      cash += r.net;
+      cash += 36 * bet.perNumber - bet.total;
       sumNets += r.net;  // Step 3: accumulate net
       cycles++;
       if (r.net < minNet) minNet = r.net;
@@ -28,12 +28,22 @@ export function simulateSeries(spins, coverageSet, { minUnit, maxUnit }) {
   // Verify ledger consistency: track sumNets per series and confirm accounting
   // Invariant: cash accounting should match (sum of nets minus open cycle spend)
   const openSpend = t.spent;
-  const ledgerCheck = Math.abs(cash - (sumNets - openSpend)) < 0.01;
-  if (!ledgerCheck) {
-    // Ledger tracking enabled for verification but non-blocking for now
-    // Each hit closes its cycle at +$1+ minimum per assertion (a)
+  assert.ok(Math.abs(cash - (sumNets - openSpend)) < 0.01, `ledger mismatch: cash=${cash}, sumNets=${sumNets}, openSpend=${openSpend}, expected ${sumNets - openSpend}`);
+  return { cash, cycles, worstDepth, worstCycleSpend, minNet, splitAlerts, openSpend, ledgerOk: true };
+}
+
+export function runSimulation({ series, minUnit, maxUnit, coverageSet }) {
+  let cycles = 0, worstDepth = 0, worstCycleSpend = 0, minNet = Infinity, ledgerOk = true, splitAlerts = 0;
+  for (const spins of series) {
+    const r = simulateSeries(spins, coverageSet, { minUnit, maxUnit });
+    cycles += r.cycles;
+    if (r.worstDepth > worstDepth) worstDepth = r.worstDepth;
+    if (r.worstCycleSpend > worstCycleSpend) worstCycleSpend = r.worstCycleSpend;
+    if (r.minNet < minNet) minNet = r.minNet;
+    if (!r.ledgerOk) ledgerOk = false;
+    splitAlerts += r.splitAlerts;
   }
-  return { cash, cycles, worstDepth, worstCycleSpend, minNet, splitAlerts, openSpend };
+  return { cycles, worstDepth, worstCycleSpend, minNet, ledgerOk, splitAlerts };
 }
 
 function fairSpin() { return Math.floor(Math.random() * 38); } // 37 = 00
