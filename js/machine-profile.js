@@ -1,5 +1,6 @@
 (function (root, factory) {
-  factory(root.BTHG || (root.BTHG = {}));
+  const mod = factory(root.BTHG || (root.BTHG = {}));
+  if (typeof module === 'object' && module.exports) module.exports = mod;
 })(typeof window !== 'undefined' ? window : globalThis, function (BTHG) {
   const KEY = 'bthg_machines';
   const ACTIVE_KEY = 'bthg_active_machine';
