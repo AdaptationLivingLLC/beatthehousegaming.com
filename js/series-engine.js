@@ -451,14 +451,24 @@
     }
 
     /**
-     * Manually end the current series. Saves data and resets for next series,
-     * but keeps tracking (history, side bets, lifetime spins) active.
-     * Returns the series data snapshot.
+     * Manual-completion bookkeeping only: series length/average accounting
+     * (seriesCount, seriesHistory, seriesAverage, lifetimeSpins resync).
+     * Deliberately does NOT build the save record or reset board state.
+     *
+     * Split out of manualEndSeries() so RouletteTableUI's "Save & Start New
+     * Series" handler can call this, THEN build the archive record via
+     * _buildArchiveRecord (which reads finalEightFirstHitSpins/entrySpin
+     * off this engine to compute closerOffsets — they still have to be
+     * live, un-reset values), THEN call resetSeries(). That is the same
+     * bookkeeping-before-record-before-reset ordering the auto-close path
+     * in _evaluateState() already uses (seriesCount increments right at
+     * completion; the record isn't built until "New Series" is pressed,
+     * long after). Before this split, manualEndSeries() reset the board
+     * (wiping finalEightFirstHitSpins/entrySpin) before the caller ever had
+     * a chance to compute closerOffsets, so manual completions silently
+     * saved without them.
      */
-    manualEndSeries(fusionSnapshot, machineId, casino) {
-      const data = this.getSeriesDataForSave('manual', fusionSnapshot, machineId, casino);
-
-      // Record this series length
+    _recordManualCompletion() {
       this.seriesCount++;
       this.seriesHistory.push(this.totalSpins);
       this.seriesAverage = Math.round(
@@ -467,6 +477,23 @@
       // See the matching comment in _evaluateState()'s auto-close path —
       // resync lifetimeSpins here too so a manual end-series can't drift.
       this.lifetimeSpins = this.seriesHistory.reduce((a, b) => a + b, 0);
+    }
+
+    /**
+     * Manually end the current series. Saves data and resets for next series,
+     * but keeps tracking (history, side bets, lifetime spins) active.
+     * Returns the series data snapshot.
+     *
+     * NOTE: this does not carry closerOffsets (see _buildArchiveRecord in
+     * roulette-table.js) — RouletteTableUI's "Save & Start New Series"
+     * handler does NOT call this anymore; it calls _recordManualCompletion()
+     * + _buildArchiveRecord() + resetSeries() directly so the archived
+     * record is shape-identical to an auto completion. This method is kept
+     * as a standalone convenience/back-compat entry point.
+     */
+    manualEndSeries(fusionSnapshot, machineId, casino) {
+      this._recordManualCompletion();
+      const data = this.getSeriesDataForSave('manual', fusionSnapshot, machineId, casino);
 
       // Reset number tracking for next series, keep everything else
       this._resetForNewSeries();

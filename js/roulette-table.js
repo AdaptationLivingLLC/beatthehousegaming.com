@@ -523,8 +523,16 @@
       // record's timestamp as their seriesMarker (never deleted — the full
       // spin tape for the machine has to persist forever), so the next load
       // knows they belong to a finished series and skips them on replay.
+      // Routed through _recordManualCompletion() + _buildArchiveRecord()
+      // (same record-builder the auto-close path uses) instead of
+      // engine.manualEndSeries() directly, so this manual completion also
+      // carries closerOffsets — manualEndSeries() used to reset the board
+      // (wiping finalEightFirstHitSpins/entrySpin) before closerOffsets
+      // could ever be computed from it.
       document.getElementById('es-save-new').addEventListener('click', () => {
-        const seriesData = this.engine.manualEndSeries(fusionSnapshot, machineId, casino);
+        this.engine._recordManualCompletion();
+        const seriesData = this._buildArchiveRecord(this.engine, 'manual', fusionSnapshot, machineId, casino);
+        this.engine.resetSeries();
         BTHG.Storage.SeriesDB.saveSeries(seriesData)
           .then(() => BTHG.Storage.SpinDB.markArchived(machineId, seriesData.timestamp))
           .then(() => {
@@ -603,7 +611,13 @@
         <button id="btn-new-series">New Series</button>
         <button id="btn-keep-reviewing">Keep Reviewing</button>`;
       this.container.prepend(banner);
-      banner.querySelector('#btn-new-series').addEventListener('click', () => this.archiveAndReset(endType));
+      banner.querySelector('#btn-new-series').addEventListener('click', (e) => {
+        // Disable immediately (belt-and-suspenders alongside the
+        // this._archiving guard in archiveAndReset) so a rapid double-tap
+        // can't even fire a second click before the first is processed.
+        e.currentTarget.disabled = true;
+        this.archiveAndReset(endType);
+      });
       banner.querySelector('#btn-keep-reviewing').addEventListener('click', () => banner.classList.add('scb-collapsed'));
 
       this._persistFrozenSnapshot(endType);
@@ -633,8 +647,18 @@
      * always-visible tape view), drop the frozen snapshot, and reset the
      * engine for the next series. This is now the ONLY place a completed
      * series gets saved or the board gets wiped.
+     *
+     * Guarded by this._archiving against a double-tap on "New Series"
+     * racing two archive+save cycles for the same frozen series (which
+     * would otherwise produce two SeriesDB records for one completed
+     * series). The flag is checked-and-set synchronously at entry — before
+     * anything async happens — and cleared in a .finally() once the
+     * save/mark chain settles either way.
      */
     archiveAndReset(endType) {
+      if (this._archiving) return;
+      this._archiving = true;
+
       const machineId = BTHG._currentMachineId || 'default';
       const casino = BTHG._currentCasino || 'Unknown';
       const fusionSnapshot = this.fusion.toJSON();
@@ -651,7 +675,8 @@
           this.update();
           this._saveState();
           this._showToast('New series started at spin 1.', 2500);
-        });
+        })
+        .finally(() => { this._archiving = false; });
     }
 
     // Pure record-builder, deliberately not touching `this`/DOM so it is

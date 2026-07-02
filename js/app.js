@@ -724,12 +724,22 @@
         // ALSO record to the series engine — this is the key fix
         engine.recordSpin(num);
 
-        // Persist spin
-        BTHG.Storage.SpinDB.addSpin({
-          number: num,
-          timestamp: Date.now(),
-          machineId: BTHG._currentMachineId || 'default',
-        });
+        // Persist spin — but only while the series is actually live.
+        // engine.recordSpin() above is already a no-op while frozen (series
+        // complete, awaiting New Series/Discard), but this SpinDB write
+        // was NOT gated the same way: it would persist an unmarked spin
+        // straight to storage while frozen, and since archiveAndReset's
+        // markArchived only stamps spins that exist at the moment "New
+        // Series" is pressed, that unmarked spin would get swept into
+        // whichever series comes next on a later reload. Match the engine's
+        // own guard here.
+        if (!engine.frozen) {
+          BTHG.Storage.SpinDB.addSpin({
+            number: num,
+            timestamp: Date.now(),
+            machineId: BTHG._currentMachineId || 'default',
+          });
+        }
 
         // Flash the button
         btn.classList.add('pt-num-flash');

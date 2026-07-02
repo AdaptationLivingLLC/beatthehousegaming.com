@@ -322,4 +322,143 @@ function activateAndAutoClose(engine) {
   console.log('SeriesDB snapshot records excluded from completed-series accounting: PASS');
 }
 
+// ---- Test 6: manual "Save & Start New Series" completions must carry
+// closerOffsets too — Fix round 1, Finding 1. Before the fix, the es-save-new
+// click handler saved engine.manualEndSeries()'s raw return value straight
+// to SeriesDB, bypassing _buildArchiveRecord entirely (manualEndSeries()
+// reset the board — wiping finalEightFirstHitSpins/entrySpin — before the
+// caller ever got a chance to compute closerOffsets from it). The fix routes
+// the manual path through engine._recordManualCompletion() (bookkeeping
+// only) -> RT.prototype._buildArchiveRecord() (reads the still-live
+// finalEightFirstHitSpins/entrySpin) -> engine.resetSeries(), mirroring
+// exactly what roulette-table.js's es-save-new handler now does.
+{
+  const engine = new SeriesEngine();
+  for (let i = 0; i < 30; i++) engine.recordSpin(i);
+  assert.equal(engine.finalActivated, true, 'setup: Final 8 must activate at 8 unhit');
+  assert.equal(engine.entrySpin, 30);
+
+  // Only 3 of the 8 Final numbers hit before the user manually ends the
+  // series (never reaches full auto-close/frozen).
+  engine.recordSpin(30);
+  engine.recordSpin(31);
+  engine.recordSpin(32);
+  assert.equal(engine.frozen, false, 'setup: manual end happens on a live, non-frozen engine');
+  assert.equal(engine.totalSpins, 33);
+
+  // Exactly what roulette-table.js's fixed es-save-new handler does.
+  engine._recordManualCompletion();
+  const record = RT.prototype._buildArchiveRecord(engine, 'manual', null, 'table-2', 'Wynn');
+  engine.resetSeries();
+
+  assert.equal(record.endType, 'manual', 'endType must stay manual');
+  assert.equal(record.machineId, 'table-2');
+  assert.equal(record.casino, 'Wynn');
+  assert.equal(record.entrySpin, 30, 'entrySpin must be captured before resetSeries() wipes it');
+  assert.ok(Array.isArray(record.closerOffsets), 'manual record must carry closerOffsets');
+  assert.deepEqual([...record.closerOffsets].sort((a, b) => a - b), [1, 2, 3],
+    'closerOffsets must reflect the 3 Final numbers that hit before the manual end');
+  assert.equal(record.seriesNumber, 1, 'seriesCount must already be incremented (same ordering as the auto path)');
+
+  // Shape-identical to an auto-completion record — same keys, since both
+  // now go through the same _buildArchiveRecord builder. Downstream
+  // analytics (tailStats/rankFinal) depend on this.
+  const autoEngine = new SeriesEngine();
+  activateAndAutoClose(autoEngine);
+  const autoRecord = RT.prototype._buildArchiveRecord(autoEngine, 'auto', null, 'table-2', 'Wynn');
+  assert.deepEqual(Object.keys(record).sort(), Object.keys(autoRecord).sort(),
+    'manual and auto archive records must be shape-identical');
+
+  // resetSeries() must still have run — board wiped, tracking preserved.
+  assert.equal(engine.totalSpins, 0);
+  assert.equal(engine.seriesCount, 1);
+  assert.deepEqual([...engine.seriesHistory], [33]);
+
+  console.log('manual "Save & Start New Series" completions carry closerOffsets, shape-identical to auto: PASS');
+}
+
+// ---- Test 7: archiveAndReset re-entrancy guard — Fix round 1, Finding 2.
+// A rapid double-tap on "New Series" must not archive the same frozen
+// series twice (two SeriesDB records for one completion). The guard
+// (this._archiving, checked-and-set synchronously at entry) must block the
+// second call before it ever reaches SeriesDB.saveSeries — verified here by
+// calling archiveAndReset twice in the same tick and counting saveSeries
+// calls via a stub, per the storage-stub pattern used elsewhere in this
+// file. archiveAndReset's success path touches the global `document` (not
+// available in this vm sandbox — see the file header note), so the stub
+// returns a never-settling Promise: the re-entrancy check only needs the
+// synchronous entry guard, and a pending (not rejected) promise can't
+// trigger an unhandled-rejection warning.
+{
+  const engine = new SeriesEngine();
+  engine.recordSpin(1);
+  engine.recordSpin(2);
+  engine.recordSpin(3);
+
+  const fakeThis = Object.create(RT.prototype);
+  fakeThis.engine = engine;
+  fakeThis.fusion = { toJSON: () => null };
+
+  const realSaveSeries = BTHG.Storage.SeriesDB.saveSeries;
+  let saveCalls = 0;
+  BTHG.Storage.SeriesDB.saveSeries = () => { saveCalls++; return new Promise(() => {}); };
+
+  try {
+    fakeThis.archiveAndReset('manual');
+    fakeThis.archiveAndReset('manual'); // rapid double-click, same tick
+
+    assert.equal(saveCalls, 1,
+      'a second archiveAndReset call in the same tick must be a no-op (re-entrancy guard)');
+    assert.equal(fakeThis._archiving, true, 'archiving flag must stay set while the save is in flight');
+  } finally {
+    BTHG.Storage.SeriesDB.saveSeries = realSaveSeries;
+  }
+
+  console.log('archiveAndReset re-entrancy guard blocks a rapid double New-Series click: PASS');
+}
+
+// ---- Test 8: Pocket Timing overlay must not persist a spin to SpinDB
+// while the engine is frozen — Fix round 1, Finding 3 (js/app.js, the
+// pt-felt-btn click handler). js/app.js cannot be loaded into this vm
+// sandbox at all: it calls document.addEventListener('DOMContentLoaded', ...)
+// at module top level (see the file header note above re: no `document`
+// global here), so this reimplements the exact guarded snippet — same
+// precedent as Test 3's simulateReload() reimplementing loadPreviousTable —
+// against a minimal SpinDB call-counter stand-in, and exercises that
+// directly. This is the smallest testable unit of the fix; the real
+// app.js path is not reachable from this harness.
+{
+  function makeFakeSpinDB() {
+    let calls = 0;
+    return { async addSpin() { calls++; }, count: () => calls };
+  }
+
+  // Mirrors the fixed snippet in app.js's pt-felt-btn click handler:
+  //   engine.recordSpin(num);
+  //   if (!engine.frozen) { BTHG.Storage.SpinDB.addSpin({...}); }
+  function pocketTimingSpin(engine, spinDB, num) {
+    engine.recordSpin(num);
+    if (!engine.frozen) {
+      spinDB.addSpin({ number: num, timestamp: Date.now(), machineId: 'default' });
+    }
+  }
+
+  const frozenEngine = new SeriesEngine();
+  activateAndAutoClose(frozenEngine);
+  assert.equal(frozenEngine.frozen, true, 'setup: engine must be frozen');
+  const frozenSpinDB = makeFakeSpinDB();
+  pocketTimingSpin(frozenEngine, frozenSpinDB, 12);
+  assert.equal(frozenEngine.totalSpins, 38, 'frozen engine must not accept the spin (matches recordSpin no-op)');
+  assert.equal(frozenSpinDB.count(), 0, 'SpinDB.addSpin must NOT be called while the engine is frozen');
+
+  // Sanity: the same helper DOES persist normally while live (not frozen).
+  const liveEngine = new SeriesEngine();
+  const liveSpinDB = makeFakeSpinDB();
+  pocketTimingSpin(liveEngine, liveSpinDB, 12);
+  assert.equal(liveEngine.totalSpins, 1);
+  assert.equal(liveSpinDB.count(), 1, 'SpinDB.addSpin must still fire normally while not frozen');
+
+  console.log('Pocket Timing overlay SpinDB.addSpin gated on engine.frozen (smallest testable unit): PASS');
+}
+
 console.log('series-persistence: ALL PASS');
