@@ -1,0 +1,64 @@
+/* ============================================================
+   themes.css — Theme token sets (Casino / Midnight / Paper)
+   BTHG Roulette Breaker Web App
+   Loaded before app.css so every var() reference in app.css
+   resolves against the active body[data-theme] block.
+   Cycled at runtime by BTHG.UI.cycleTheme() (js/ui-shell.js),
+   persisted via BTHG.Storage.Settings (settings.theme).
+
+   Each block defines:
+   - the 12 required tokens (bg/surface/line/text/muted/accent/
+     accent2/red/black/green/win/loss) — exact values per spec.
+   - "-rgb" component tokens (accent-rgb/win-rgb/loss-rgb/red-rgb)
+     so glow/shadow rgba() calls elsewhere in app.css can retint
+     per theme without a separate hex-to-rgb conversion per site.
+   - --gold-glow, kept under its legacy name (many box-shadow /
+     text-shadow rules already reference it) but revalued per
+     theme: strong glow for Casino, low glow for Midnight, almost
+     none for Paper ("deliberately boring").
+   - --cell-bg: translucent wash used behind table cells / side-bet
+     chips. Deliberately NOT inverted to a light color for Paper —
+     white number/label text sits on these chips in all three
+     themes, so Paper keeps a dark neutral (var(--black)-derived)
+     chip instead of full-white, to stay legible without having to
+     re-color every chip label individually.
+   ============================================================ */
+
+body[data-theme="casino"] {
+  --bg: #0a1f10; --surface: #122b18; --line: #2c4a33;
+  --text: #f4efe1; --muted: #9fb3a4; --accent: #d4af37; --accent2: #5EFF00;
+  --red: #c8362e; --black: #171717; --green: #0f6b2f; --win: #5EFF00; --loss: #ff4444;
+
+  --accent-rgb: 212, 175, 55;
+  --win-rgb: 94, 255, 0;
+  --loss-rgb: 255, 68, 68;
+  --red-rgb: 200, 54, 46;
+  --gold-glow: rgba(212, 175, 55, 0.4);
+  --cell-bg: rgba(10, 10, 10, 0.6);
+}
+
+body[data-theme="midnight"] {
+  --bg: #0b0d12; --surface: #14171f; --line: #242a36;
+  --text: #d7dce6; --muted: #7c8494; --accent: #5b8cff; --accent2: #37d67a;
+  --red: #a03030; --black: #101014; --green: #1d4d33; --win: #37d67a; --loss: #e05555;
+
+  --accent-rgb: 91, 140, 255;
+  --win-rgb: 55, 214, 122;
+  --loss-rgb: 224, 85, 85;
+  --red-rgb: 160, 48, 48;
+  --gold-glow: rgba(91, 140, 255, 0.22);
+  --cell-bg: rgba(10, 12, 20, 0.65);
+}
+
+body[data-theme="paper"] {
+  --bg: #f5f4f0; --surface: #ffffff; --line: #d8d5cc;
+  --text: #22221f; --muted: #77746a; --accent: #3b5bdb; --accent2: #2b8a3e;
+  --red: #c0392b; --black: #3a3a3a; --green: #2b8a3e; --win: #2b8a3e; --loss: #c0392b;
+
+  --accent-rgb: 59, 91, 219;
+  --win-rgb: 43, 138, 62;
+  --loss-rgb: 192, 57, 43;
+  --red-rgb: 192, 57, 43;
+  --gold-glow: rgba(0, 0, 0, 0.06);
+  --cell-bg: rgba(58, 58, 58, 0.85);
+}

@@ -33,7 +33,13 @@
 
     render() {
       this.container.innerHTML = '';
-      this.container.className = 'roulette-app-container';
+      // The outer container (#app-root) stays unstyled — Task 7's layout
+      // shell (css/app.css) targets #table-container as the thing that
+      // goes edge-to-edge/fixed on phone landscape, and needs #intel-feed
+      // as its sibling (both direct children of #app-root) for the
+      // tablet/desktop grid split. See js/ui-shell.js + the
+      // body.layout-* rules in app.css.
+      this.container.className = '';
 
       const html = `
         <!-- Spin Counter — always visible, resets on series completion -->
@@ -172,7 +178,21 @@
         </div>
       `;
 
-      this.container.innerHTML = html;
+      // #table-container wraps the whole table screen above so the
+      // layout shell can position it edge-to-edge (phone landscape) or
+      // as the left/top grid cell (tablet/desktop) without touching any
+      // of the ids/classes inside it. #intel-feed is its sibling — the
+      // right/bottom grid cell on tablet/desktop, hidden on phone. Its
+      // content renderer is a later task; this is a themed placeholder.
+      this.container.innerHTML = `
+        <div id="table-container" class="roulette-app-container">${html}</div>
+        <div id="intel-feed">
+          <div class="intel-feed-empty">
+            <i class="fas fa-satellite-dish"></i>
+            <p>Live intelligence feed will appear here once a series is active.</p>
+          </div>
+        </div>
+      `;
       this._buildZeros();
       this._buildNumberGrid();
       this._buildColumns();
@@ -610,7 +630,11 @@
         <span class="scb-title">SERIES COMPLETE (${endType === 'auto' ? 'CLOSED' : 'MANUAL'})</span>
         <button id="btn-new-series">New Series</button>
         <button id="btn-keep-reviewing">Keep Reviewing</button>`;
-      this.container.prepend(banner);
+      // Prepend inside #table-container (not this.container/#app-root)
+      // so the banner stays visually anchored to the table it freezes,
+      // and stacks correctly on phone landscape where #table-container
+      // is position:fixed (see css/app.css layout-phone-land rules).
+      (this.container.querySelector('#table-container') || this.container).prepend(banner);
       banner.querySelector('#btn-new-series').addEventListener('click', (e) => {
         // Disable immediately (belt-and-suspenders alongside the
         // this._archiving guard in archiveAndReset) so a rapid double-tap
