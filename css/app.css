@@ -492,7 +492,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.75rem;
-  background: rgba(0,0,0,0.7);
+  background: var(--surface);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
   min-height: 40px;
@@ -1070,7 +1070,7 @@ body[data-theme="paper"] .rt-felt {
 
 /* ---- Bottom Section ---- */
 .rt-bottom-section {
-  background: rgba(0,0,0,0.7);
+  background: var(--surface);
   padding: 0.4rem 0.75rem;
   flex-shrink: 0;
 }
@@ -1126,6 +1126,9 @@ body[data-theme="paper"] .rt-felt {
   font-style: italic;
 }
 
+/* #ff6600 is a fixed semantic "hot prediction" alert color (same family
+   as the other heat-map warm/hot indicators documented in the Task 7
+   token-pass notes) — deliberately theme-constant, not an oversight. */
 .rt-pred-icon {
   color: #ff6600;
   font-size: 0.9rem;
@@ -1253,7 +1256,7 @@ body[data-theme="paper"] .rt-felt {
   justify-content: center;
   gap: 1.5rem;
   padding: 0.3rem;
-  background: rgba(0,0,0,0.6);
+  background: var(--surface);
   border-top: 1px solid rgba(255,255,255,0.04);
   font-size: 0.8rem;
   color: var(--muted);
@@ -1954,6 +1957,10 @@ body[data-theme="paper"] .rt-felt {
   left: 2px;
   width: 14px;
   height: 14px;
+  /* #888 is the native-switch-knob gray for the OFF state — deliberately
+     theme-constant (a neutral physical-control color, not a brand/surface
+     color), not an oversight. The ON state below already retints via
+     var(--win-rgb). */
   background: #888;
   border-radius: 50%;
   transition: transform 0.2s, background 0.2s;
@@ -2604,7 +2611,7 @@ body[data-theme="paper"] .pt-felt-wrapper {
 
 /* ---- Layout classes (exact rules from the Task 7 brief) ---- */
 body.layout-phone-land #table-container { position: fixed; inset: 28px 0 0 0; }
-body.layout-phone-land .rt-cell { min-width: 48px; min-height: 48px; font-size: 1.05rem; }
+body.layout-phone-land .rt-cell { min-width: 44px; min-height: 44px; font-size: 1.05rem; }
 body.layout-phone-land #status-strip { position: fixed; top: 0; height: 28px; width: 100%;
   display: flex; gap: 12px; align-items: center; font-size: 0.72rem; background: var(--surface); }
 body.layout-phone-port #rotate-prompt { display: flex; }
@@ -2612,6 +2619,49 @@ body.layout-phone-port #table-container { display: none; }
 body.layout-tablet #app-root { display: grid; grid-template-rows: 33vh 1fr; height: 100vh; }
 body.layout-tablet #intel-feed { overflow-y: auto; background: var(--bg); }
 body.layout-desktop #app-root { display: grid; grid-template-columns: 1fr 420px; height: 100vh; }
+
+/* ---- Phone-landscape compaction pass (review round 1, Finding 1: Critical) ----
+   The literal 48px .rt-cell min-width above overflows the real available
+   width once every piece of chrome between the viewport edge and the
+   12-column number grid is accounted for. This block re-derives that
+   chrome down to the minimum, then lets the grid's own `1fr` tracks
+   distribute whatever width is actually left, instead of forcing a fixed
+   min that the box can't hold. min-width:44px below is a floor (Apple
+   HIG minimum touch target), not a target size — it never binds at
+   either budget width, it just stops a future narrower device from
+   going below 44px.
+
+   Budget @ 667px (iPhone 7 landscape, the reviewer's verified case):
+     667
+     - wrapper padding      2px * 2 sides           =  4
+     - felt border+padding  (1px + 1px) * 2 sides   =  4
+     - zeros column (fixed width)                   = 40
+     - columns column (fixed width)                 = 40
+     - rt-table-body flex gaps   2 gaps * 2px        =  4
+     - rt-number-grid gaps       11 gaps * 1px       = 11
+     ---------------------------------------------------
+     = 564px remaining / 12 cols = 47px/cell (clears the 44px floor)
+
+   Budget @ 640px (smallest common landscape width, floor check):
+     640 - 4 - 4 - 40 - 40 - 4 - 11 = 537px / 12 cols = 44.75px/cell
+     (still >= the 44px floor below — no overflow, no clipped cells) */
+body.layout-phone-land .rt-table-wrapper { padding: 2px; }
+body.layout-phone-land .rt-felt { max-width: none; border-width: 1px; padding: 1px; }
+body.layout-phone-land .rt-number-grid { gap: 1px; }
+body.layout-phone-land .rt-zeros-col { width: 40px; min-width: 40px; }
+body.layout-phone-land .rt-columns-col { width: 40px; min-width: 40px; }
+
+/* Zeros column is a fixed 40px rail, not a 1fr grid track (Finding 3
+   exclusion from the 44px floor above) — a 44px min-width there would
+   itself overflow the 40px column it lives in, so it gets its own floor
+   sized to actually fit. Height floor is untouched (same 44px). */
+body.layout-phone-land .rt-zeros-col .rt-cell { min-width: 38px; min-height: 44px; }
+
+/* Side-bet rows (dozens/bands) are full-width bands below the number
+   grid, not part of the 12-col width budget above — only the touch
+   target height matters for them here. */
+body.layout-phone-land .rt-dozen-cell,
+body.layout-phone-land .rt-band-cell { min-height: 44px; }
 
 /* ---- Supplementary layout rules (not in the brief's 8 literal lines,
    needed so the above actually works end to end) ---- */
