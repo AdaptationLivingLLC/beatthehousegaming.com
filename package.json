@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vercel dev",
     "migrate": "node scripts/migrate.mjs",
-    "test": "node tests/test-all.cjs && node tests/test-machine-profile.mjs && node tests/test-trinity.mjs",
+    "test": "node tests/test-all.cjs && node tests/test-machine-profile.mjs && node tests/test-trinity.mjs && node tests/test-series-fixes.mjs",
     "simulate": "node tests/simulate-trinity.mjs"
   },
   "dependencies": {

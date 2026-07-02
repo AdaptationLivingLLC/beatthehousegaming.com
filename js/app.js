@@ -1082,6 +1082,15 @@
       <div class="rt-overlay-content bankroll-panel">
         <h2 style="color:#d4af37;"><i class="fas fa-dollar-sign"></i> Bankroll & Trinity</h2>
         <p style="color:#888;font-size:0.8rem;margin-bottom:1rem;">Trinity is a controlled doubling progression. Bet stays at 1x for the first 3 misses, then doubles: 2x (3-4 misses), 4x (5-6), 8x (7+). Resets on any hit.</p>
+        <div class="br-config" style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.6rem;align-items:end;margin-bottom:1rem;">
+          <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">BANKROLL ($)
+            <input type="number" id="br-set-bankroll" value="${bankroll.totalBankroll}" min="0" step="1" inputmode="decimal" style="padding:0.55rem;background:#111;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;width:100%;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">BASE BET ($)
+            <input type="number" id="br-set-bet" value="${bankroll.baseBet}" min="0.25" step="0.25" inputmode="decimal" style="padding:0.55rem;background:#111;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;width:100%;">
+          </label>
+          <button id="br-apply" class="btn-gold" style="padding:0.6rem 1.1rem;white-space:nowrap;">Apply</button>
+        </div>
         <div class="br-stats">
           <div class="br-stat"><span class="br-label">Bankroll</span><span class="br-value" style="color:#5EFF00;">${BTHG.formatMoney(state.bankroll)}</span></div>
           <div class="br-stat"><span class="br-label">Session P&L</span><span class="br-value" style="color:${state.sessionPnL >= 0 ? '#5EFF00' : '#ff3333'};">${state.sessionPnL >= 0 ? '+' : '-'}${BTHG.formatMoney(Math.abs(state.sessionPnL))}</span></div>
@@ -1107,6 +1116,28 @@
     `;
 
     document.getElementById('app-root').appendChild(overlay);
+
+    overlay.querySelector('#br-apply').addEventListener('click', () => {
+      const newBank = parseFloat(document.getElementById('br-set-bankroll').value);
+      const newBet = parseFloat(document.getElementById('br-set-bet').value);
+      if (!isNaN(newBank) && newBank >= 0) {
+        bankroll.totalBankroll = newBank;
+        bankroll.sessionStartBankroll = newBank; // re-baseline session P&L to the new bankroll
+        bankroll.peakBankroll = newBank;
+      }
+      if (!isNaN(newBet) && newBet > 0) {
+        bankroll.baseBet = newBet;
+      }
+      // Persist so the new bankroll/bet survive a reload and seed the next session
+      const s = BTHG.Storage.Settings.load();
+      s.bankroll = bankroll.totalBankroll;
+      s.baseBet = bankroll.baseBet;
+      BTHG.Storage.Settings.save(s);
+      if (typeof tableUI !== 'undefined' && tableUI) tableUI.update();
+      overlay.remove();
+      showBankrollPanel(); // re-render with the updated values
+    });
+
     overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
   }
 

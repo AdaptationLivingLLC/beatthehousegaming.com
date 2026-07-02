@@ -373,15 +373,24 @@
       // Capture betting state BEFORE recordSpin modifies it
       // (recordSpin resets trinityMissStreak on hit, and can clear finalEightJustHit on series complete)
       const wasFinalActive = this.engine.finalActivated;
-      const wasInFinal = this.engine.finalEight.includes(num);
+      // A spin is a WIN if the number is anywhere in our actual coverage —
+      // the Final 8 PLUS the always-covered 0 and 00. Using finalEight alone
+      // wrongly booked every 0/00 hit as a loss even though we cover them,
+      // which dragged the session P&L negative.
+      const wasInFinal = this.engine.getTrinityNumbers().includes(num);
       const numbersPlayed = this.engine.getTrinityNumbers().length;
       const multiplier = this.engine.getTrinityMultiplier();
 
       // Record spin (modifies engine state)
       this.engine.recordSpin(num);
 
-      // Record bankroll using pre-spin state
-      if (wasFinalActive && numbersPlayed > 0 && this.bettingEnabled) {
+      // Record bankroll P&L stats using pre-spin state. This must run
+      // regardless of bettingEnabled — bettingEnabled only gates the manual
+      // "BET ON" UI toggle, not whether a Trinity bet situation existed.
+      // Previously this whole block was gated on this.bettingEnabled, so
+      // winCount/lossCount/totalWagered silently stayed at 0 for the entire
+      // session unless the user had manually flipped betting on.
+      if (this._shouldTrackBet(wasFinalActive, numbersPlayed)) {
         this.bankroll.recordSpin(wasInFinal, numbersPlayed, multiplier);
       }
 
@@ -409,6 +418,15 @@
 
       // Save state
       this._saveState();
+    }
+
+    // Pure decision for whether this spin's P&L should be tracked into the
+    // bankroll — deliberately does NOT consult this.bettingEnabled, which is
+    // UI-only state for the manual "BET ON" toggle. A Trinity bet is "in
+    // play" (and must be tracked) whenever Final 8 was active and there were
+    // covered numbers, independent of that toggle.
+    _shouldTrackBet(wasFinalActive, numbersPlayed) {
+      return wasFinalActive && numbersPlayed > 0;
     }
 
     _flashCell(num) {

@@ -221,6 +221,14 @@
         this.seriesAverage = Math.round(
           this.seriesHistory.reduce((a, b) => a + b, 0) / this.seriesHistory.length
         );
+        // Resync lifetimeSpins against the archived history at every series
+        // boundary. lifetimeSpins is normally tracked incrementally, which
+        // can silently drift out of sync (e.g. undoLastSpin edge cases) —
+        // this makes the invariant self-healing instead of relying on every
+        // mutation site remembering to keep it perfectly balanced. At this
+        // point totalSpins (just archived into seriesHistory) is about to be
+        // reset to 0 by _resetForNewSeries(), so the sum alone is correct.
+        this.lifetimeSpins = this.seriesHistory.reduce((a, b) => a + b, 0);
         this._emit('seriesComplete', {
           seriesCount: this.seriesCount,
           totalSpins: this.totalSpins,
@@ -280,6 +288,11 @@
 
       const last = this.history.pop();
       this.totalSpins--;
+      // lifetimeSpins is incremented once per recordSpin() and must be
+      // un-done in lockstep, or it silently drifts above the true total
+      // (confirmed from a real casino export: lifetimeSpins no longer
+      // matched the sum of seriesHistory + the live series count).
+      this.lifetimeSpins--;
 
       const num = this.getNumber(last);
       if (num && num.hits > 0) num.hits--;
@@ -399,6 +412,9 @@
       this.seriesAverage = Math.round(
         this.seriesHistory.reduce((a, b) => a + b, 0) / this.seriesHistory.length
       );
+      // See the matching comment in _evaluateState()'s auto-close path —
+      // resync lifetimeSpins here too so a manual end-series can't drift.
+      this.lifetimeSpins = this.seriesHistory.reduce((a, b) => a + b, 0);
 
       // Reset number tracking for next series, keep everything else
       this._resetForNewSeries();
