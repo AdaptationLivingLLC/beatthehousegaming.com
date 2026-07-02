@@ -140,31 +140,73 @@
     // Load calibrations
     await loadCalibrations(machineId);
 
-    // Load all saved spins for this table and replay them into the engine
+    // A completed-but-not-yet-archived series freezes the board and survives
+    // reload as a snapshot in localStorage (see RouletteTableUI.
+    // showSeriesCompleteBanner / _persistFrozenSnapshot). If one exists for
+    // this machine, restore it directly instead of replaying spins — the
+    // snapshot already contains the completed series' full final state, and
+    // that series has NOT been written to SpinDB/SeriesDB yet (only New
+    // Series does that).
+    let frozenSnapshot = null;
     try {
-      const spins = await BTHG.Storage.SpinDB.getSpinsByMachine(machineId);
-      if (spins.length > 0) {
-        // Sort by timestamp to ensure correct order
-        spins.sort((a, b) => a.timestamp - b.timestamp);
-        for (const spin of spins) {
-          engine.recordSpin(spin.number);
-        }
-      }
+      const fs = BTHG.Storage.LS.get('frozen_series', null);
+      if (fs && fs.machineId === machineId && fs.engineState) frozenSnapshot = fs;
+    } catch (e) {
+      console.warn('Failed to read frozen series snapshot:', e);
+    }
 
-      // Load series history to set the series average
-      const seriesRecords = await BTHG.Storage.SeriesDB.getSeriesByMachine(machineId);
-      if (seriesRecords.length > 0) {
-        engine.seriesHistory = seriesRecords.map(s => s.totalSpins);
-        engine.seriesCount = seriesRecords.length;
-        engine.seriesAverage = Math.round(
-          engine.seriesHistory.reduce((a, b) => a + b, 0) / engine.seriesHistory.length
-        );
+    try {
+      if (frozenSnapshot) {
+        engine.fromJSON(frozenSnapshot.engineState);
+      } else {
+        // Replay only the CURRENT (unfinished) series' spins. SpinDB keeps
+        // every spin ever recorded for the machine forever (nothing is
+        // deleted — a future tape view needs the full history across every
+        // series), but every time a series is archived (New Series / Save &
+        // Start New Series) or discarded, its spins get stamped with a
+        // seriesMarker (see archiveAndReset and the Discard handler in
+        // roulette-table.js). Spins with no seriesMarker are, by
+        // definition, still part of the in-progress series — replaying only
+        // those is what closes the "67 stale spins from a finished series
+        // replayed into the next one" field bug, without losing any history.
+        const allSpins = await BTHG.Storage.SpinDB.getSpinsByMachine(machineId);
+        const liveSpins = allSpins.filter(s => s.seriesMarker == null);
+        if (liveSpins.length > 0) {
+          liveSpins.sort((a, b) => a.timestamp - b.timestamp);
+          for (const spin of liveSpins) {
+            engine.recordSpin(spin.number);
+          }
+        }
+
+        // Load series history to set the series average. Only real
+        // completions ('auto' / 'manual') count — "Save & Keep Counting"
+        // snapshots are not finished series and must not be mixed in, or
+        // the average and series count both come out wrong.
+        const seriesRecords = await BTHG.Storage.SeriesDB.getSeriesByMachine(machineId);
+        const completed = seriesRecords.filter(s => s.endType === 'auto' || s.endType === 'manual');
+        if (completed.length > 0) {
+          engine.seriesHistory = completed.map(s => s.totalSpins);
+          engine.seriesCount = completed.length;
+          engine.seriesAverage = Math.round(
+            engine.seriesHistory.reduce((a, b) => a + b, 0) / engine.seriesHistory.length
+          );
+        }
+
+        // Resync lifetimeSpins from the archived history plus whatever spins
+        // are live now, rather than trusting the incremental counter across
+        // a full engine rebuild.
+        engine.lifetimeSpins = engine.seriesHistory.reduce((a, b) => a + b, 0) + engine.totalSpins;
       }
     } catch (e) {
       console.warn('Failed to load table history:', e);
     }
 
     launchTable();
+
+    // Re-show the freeze banner on top of the restored board.
+    if (frozenSnapshot) {
+      tableUI.showSeriesCompleteBanner(frozenSnapshot.endType || 'auto');
+    }
   }
 
   function startSession(casino, machineId) {

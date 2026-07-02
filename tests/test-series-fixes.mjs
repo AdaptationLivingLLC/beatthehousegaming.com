@@ -1,5 +1,16 @@
 // tests/test-series-fixes.mjs — Task 4: engine data-integrity fixes
 //
+// UPDATED for Task 5 (series-end persistence): auto-close used to call
+// _resetForNewSeries() synchronously the instant the 38th number hit. That
+// is exactly the behavior that caused the real "67 stale spins" field bug —
+// live state got wiped with no user interaction while SpinDB still held the
+// completed series' spins, so the next load replayed them into the new
+// series. As of Task 5, auto-close FREEZES (engine.frozen = true) instead of
+// resetting; only an explicit engine.resetSeries() call (wired to "New
+// Series" in the UI) wipes history/totalSpins. Tests 1 and 2 below are
+// updated to assert the frozen contract instead of an immediate reset —
+// see tests/test-series-persistence.mjs for the full Task 5 coverage.
+//
 // Covers the four confirmed-from-real-casino-export bugs:
 //  1. Series auto-close carrying stale spins into the next series
 //     (regression guard — verified NOT reproducible against current
@@ -53,30 +64,55 @@ function activateAndAutoClose(engine) {
   return agesWerePopulated;
 }
 
-// ---- Test 1: auto-close resets history/totalSpins; lifetimeSpins stays in sync
+// ---- Test 1: auto-close FREEZES (does not reset) history/totalSpins;
+// lifetimeSpins stays in sync with the archived total while frozen.
 {
   const engine = new BTHG.SeriesEngine();
   const agesWerePopulated = activateAndAutoClose(engine);
 
-  assert.equal(engine.history.length, 0, 'history must clear on auto-close');
-  assert.equal(engine.totalSpins, 0, 'totalSpins must reset on auto-close');
+  assert.equal(engine.frozen, true, 'engine must freeze on auto-close, not reset');
+  assert.equal(engine.history.length, 38, 'history must stay intact (frozen) on auto-close, not clear');
+  assert.equal(engine.totalSpins, 38, 'totalSpins must stay intact (frozen) on auto-close, not reset to 0');
   assert.equal(engine.seriesCount, 1, 'one series should have completed');
   assert.equal(engine.seriesHistory.length, 1);
   assert.equal(engine.seriesHistory[0], 38);
+  // While frozen, totalSpins for the just-closed series is already inside
+  // seriesHistory — it must NOT be added again or lifetimeSpins double-counts.
   assert.equal(
     engine.lifetimeSpins,
-    engine.seriesHistory.reduce((a, b) => a + b, 0) + engine.totalSpins,
-    'lifetimeSpins must equal seriesHistory sum + live totalSpins'
+    engine.seriesHistory.reduce((a, b) => a + b, 0),
+    'lifetimeSpins must equal the archived seriesHistory sum while frozen'
   );
   assert.equal(engine.lifetimeSpins, 38);
   assert.ok(agesWerePopulated, 'finalEightAges/finalEightFirstHit must be written while finalActivated');
-  console.log('auto-close reset + lifetimeSpins + finalEightAges: PASS');
+
+  // A spin while frozen must be a total no-op (this is the guard that
+  // replaces the old immediate-reset behavior).
+  engine.recordSpin(5);
+  assert.equal(engine.totalSpins, 38, 'recordSpin must no-op while frozen');
+  assert.equal(engine.history.length, 38, 'history must not grow while frozen');
+
+  // resetSeries() is the ONLY thing that may unfreeze and wipe live state —
+  // wired to "New Series" in RouletteTableUI.archiveAndReset().
+  engine.resetSeries();
+  assert.equal(engine.frozen, false, 'resetSeries must unfreeze');
+  assert.equal(engine.history.length, 0, 'resetSeries must clear history');
+  assert.equal(engine.totalSpins, 0, 'resetSeries must clear totalSpins');
+  assert.equal(engine.seriesCount, 1, 'resetSeries must NOT touch archived seriesCount/seriesHistory');
+  assert.equal(engine.seriesHistory.length, 1);
+
+  console.log('auto-close freezes (no reset) + resetSeries unfreezes + lifetimeSpins + finalEightAges: PASS');
 }
 
-// ---- Test 2: next series does not inherit stale history from the closed one
+// ---- Test 2: next series does not inherit stale history from the closed
+// one, once resetSeries() is explicitly called (the "New Series" action).
 {
   const engine = new BTHG.SeriesEngine();
-  activateAndAutoClose(engine); // completes series #1 (38 spins)
+  activateAndAutoClose(engine); // completes + freezes series #1 (38 spins)
+
+  // Spinning while frozen must not leak into the next series either.
+  engine.recordSpin(9);
+  engine.resetSeries();
 
   engine.recordSpin(0);
   engine.recordSpin(1);
@@ -93,7 +129,7 @@ function activateAndAutoClose(engine) {
     engine.seriesHistory.reduce((a, b) => a + b, 0) + engine.totalSpins,
     'lifetimeSpins must still equal seriesHistory sum + live totalSpins mid-series'
   );
-  console.log('no stale carry-over into next series: PASS');
+  console.log('no stale carry-over into next series (after explicit resetSeries): PASS');
 }
 
 // ---- Test 3: lifetimeSpins must not drift after undoLastSpin (the real,

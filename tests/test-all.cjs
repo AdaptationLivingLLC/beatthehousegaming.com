@@ -289,9 +289,23 @@ assert(eng.seriesCount === 1, 'Series count incremented to 1');
 assert(eng.seriesHistory.length === 1, 'Series history has 1 entry');
 assert(eng.seriesHistory[0] === 38, 'Series history records 38 spins');
 assert(eng.seriesAverage === 38, 'Series average = 38');
-assert(eng.totalSpins === 0, 'After completion: totalSpins reset to 0');
-assert(eng.getRemainingCount() === 38, 'After completion: 38 remaining again');
+// Task 5: auto-close now FREEZES instead of resetting immediately — the
+// board stays exactly as it finished (totalSpins/history intact, remaining
+// stays 0) until an explicit resetSeries() call (wired to "New Series").
+assert(eng.frozen === true, 'After completion: engine frozen, not reset');
+assert(eng.totalSpins === 38, 'After completion (frozen): totalSpins stays at 38');
+assert(eng.getRemainingCount() === 0, 'After completion (frozen): still 0 remaining');
 assert(eng.lifetimeSpins === 38, 'Lifetime spins = 38');
+
+// A spin while frozen must be a total no-op.
+eng.recordSpin(3);
+assert(eng.totalSpins === 38, 'recordSpin is a no-op while frozen');
+
+// "New Series" pressed — explicitly reset for the next series.
+eng.resetSeries();
+assert(eng.frozen === false, 'resetSeries unfreezes');
+assert(eng.totalSpins === 0, 'After resetSeries: totalSpins reset to 0');
+assert(eng.getRemainingCount() === 38, 'After resetSeries: 38 remaining again');
 
 // Second series — add some duplicates to make it longer
 seriesCompleted = false;
@@ -305,6 +319,8 @@ assert(eng.seriesCount === 2, 'Series count = 2');
 assert(eng.seriesHistory[1] === 40, 'Second series took 40 spins (38 + 2 dupes)');
 assert(eng.seriesAverage === 39, 'Average of 38 and 40 = 39');
 assert(eng.lifetimeSpins === 78, 'Lifetime = 38 + 40 = 78');
+assert(eng.frozen === true, 'Second completion also freezes');
+eng.resetSeries();
 
 // ============================================================
 // TEST 5: Trinity Progression

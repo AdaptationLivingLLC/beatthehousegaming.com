@@ -42,7 +42,15 @@
       this.finalEight = [];        // array of number values in Final 8
       this.finalEightAges = {};    // { numberValue: age }
       this.finalEightFirstHit = new Set();
+      this.finalEightFirstHitSpins = {};  // { numberValue: totalSpins at first hit } — used to compute closerOffsets on archive
       this.finalEightJustHit = new Set();
+      this.entrySpin = null;       // totalSpins count at the moment Final 8 activated (start of the closing phase)
+
+      // Frozen: set true the instant a series completes. While frozen, new
+      // spins are refused (see recordSpin) — the board stays exactly as it
+      // was at completion so it can be reviewed. Only an explicit
+      // resetSeries() call (wired to the "New Series" action) clears it.
+      this.frozen = false;
       // Configurable coverage: how many unhit numbers to cover (+ 0/00 always).
       // Preserved across series/table resets so it stays a user setting, not
       // something that snaps back to the default every reset.
@@ -84,6 +92,10 @@
     }
 
     recordSpin(number) {
+      // While frozen (series complete, awaiting New Series / Keep Reviewing)
+      // spins do not register at all — this is the guard that replaces the
+      // old "auto-reset immediately on completion" behavior.
+      if (this.frozen) return;
       if (number < 0 || number > 37) return;
 
       this.totalSpins++;
@@ -143,6 +155,7 @@
         if (!this.finalEightFirstHit.has(number)) {
           this.finalEightFirstHit.add(number);
           this.finalEightAges[number] = 0;
+          this.finalEightFirstHitSpins[number] = this.totalSpins;
         }
       } else if (number !== 0 && number !== 37) {
         // MISS (non-zero)
@@ -210,6 +223,8 @@
         this.finalEight = unhit.map(n => n.value);
         this.finalEightAges = {};
         this.finalEightFirstHit.clear();
+        this.finalEightFirstHitSpins = {};
+        this.entrySpin = this.totalSpins;
         this.trinityMissStreak = 0;
         this._emit('finalActivated', { numbers: [...this.finalEight] });
       }
@@ -225,9 +240,10 @@
         // boundary. lifetimeSpins is normally tracked incrementally, which
         // can silently drift out of sync (e.g. undoLastSpin edge cases) —
         // this makes the invariant self-healing instead of relying on every
-        // mutation site remembering to keep it perfectly balanced. At this
-        // point totalSpins (just archived into seriesHistory) is about to be
-        // reset to 0 by _resetForNewSeries(), so the sum alone is correct.
+        // mutation site remembering to keep it perfectly balanced. totalSpins
+        // for the series that just closed is already inside seriesHistory
+        // (pushed above), and — unlike before — totalSpins is NOT reset here,
+        // so the sum alone (without adding totalSpins again) is correct.
         this.lifetimeSpins = this.seriesHistory.reduce((a, b) => a + b, 0);
         this._emit('seriesComplete', {
           seriesCount: this.seriesCount,
@@ -235,8 +251,18 @@
           lastNumber: this.history[this.history.length - 1],
           seriesAverage: this.seriesAverage
         });
-        // Reset for next series
-        this._resetForNewSeries();
+        // FREEZE instead of resetting. The old behavior called
+        // _resetForNewSeries() right here, synchronously, with no user
+        // interaction — that silently wiped totalSpins/history the instant
+        // the 38th number hit, while the live spin backlog for this machine
+        // in SpinDB was untouched. On the next load, every one of those
+        // spins (now belonging to nothing) got replayed on top of the next
+        // series, which is exactly the "67 stale spins" field bug. Now the
+        // engine just stops accepting new spins (see recordSpin) and holds
+        // its final state until resetSeries() is explicitly called — which
+        // only happens from RouletteTableUI.archiveAndReset(), itself only
+        // reachable by pressing "New Series".
+        this.frozen = true;
       }
     }
 
@@ -250,9 +276,12 @@
       this.finalEight = [];
       this.finalEightAges = {};
       this.finalEightFirstHit.clear();
+      this.finalEightFirstHitSpins = {};
+      this.entrySpin = null;
       this.finalEightJustHit.clear();
       this.finalActivated = false;
       this.trinityMissStreak = 0;
+      this.frozen = false;
       // Reset the outside-bet counters too, so they zero out with the board
       // instead of carrying over from the previous series.
       for (const label of Object.keys(BTHG.SIDE_BETS)) {
@@ -260,6 +289,17 @@
         this.sideBetHits[label] = 0;
       }
       // Keep: seriesCount, seriesHistory, seriesAverage, lifetimeSpins
+    }
+
+    /**
+     * Explicitly start a new series after the previous one has been
+     * archived (or discarded). This is now the ONLY path that wipes live
+     * board state following an auto-completed series — completion itself
+     * (_evaluateState) just freezes. Called from
+     * RouletteTableUI.archiveAndReset() when "New Series" is pressed.
+     */
+    resetSeries() {
+      this._resetForNewSeries();
     }
 
     // ---- Trinity Multiplier ------------------------------------
@@ -284,6 +324,9 @@
 
     // ---- Undo ---------------------------------------------------
     undoLastSpin() {
+      // Frozen means the series is complete and awaiting New Series —
+      // nothing about the frozen board is mutable, undo included.
+      if (this.frozen) return false;
       if (this.history.length === 0) return false;
 
       const last = this.history.pop();
@@ -305,6 +348,8 @@
       this.finalEight = [];
       this.finalEightAges = {};
       this.finalEightFirstHit.clear();
+      this.finalEightFirstHitSpins = {};
+      this.entrySpin = null;
       this.finalEightJustHit.clear();
       this.finalActivated = false;
       this.trinityMissStreak = 0;
@@ -314,6 +359,7 @@
       if (unhit.length <= this.finalTargetCount) {
         this.finalActivated = true;
         this.finalEight = unhit.map(n => n.value);
+        this.entrySpin = this.totalSpins;
       }
 
       this._emit('undo', { removed: last });
@@ -395,6 +441,12 @@
         finalEight: [...this.finalEight],
         finalActivated: this.finalActivated,
         lifetimeSpins: this.lifetimeSpins,
+        // Spin count at which Final 8 activated (start of the closing
+        // phase), or null if the series never reached Final 8 before
+        // ending. Combined with finalEightFirstHitSpins by the caller to
+        // derive closerOffsets (how many spins into the close each of the
+        // final numbers took to hit).
+        entrySpin: this.entrySpin,
       };
     }
 
@@ -462,12 +514,15 @@
         finalEight: this.finalEight,
         finalEightAges: this.finalEightAges,
         finalEightFirstHit: [...this.finalEightFirstHit],
+        finalEightFirstHitSpins: this.finalEightFirstHitSpins,
+        entrySpin: this.entrySpin,
         finalActivated: this.finalActivated,
         trinityMissStreak: this.trinityMissStreak,
         sideBetAgo: this.sideBetAgo,
         sideBetHits: this.sideBetHits,
         finalTargetCount: this.finalTargetCount,
         isAutoAddEnabled: this.isAutoAddEnabled,
+        frozen: this.frozen,
       };
     }
 
@@ -487,12 +542,15 @@
       this.finalEight = data.finalEight || [];
       this.finalEightAges = data.finalEightAges || {};
       this.finalEightFirstHit = new Set(data.finalEightFirstHit || []);
+      this.finalEightFirstHitSpins = data.finalEightFirstHitSpins || {};
+      this.entrySpin = data.entrySpin != null ? data.entrySpin : null;
       this.finalActivated = data.finalActivated || false;
       this.trinityMissStreak = data.trinityMissStreak || 0;
       this.sideBetAgo = data.sideBetAgo || {};
       this.sideBetHits = data.sideBetHits || {};
       this.finalTargetCount = data.finalTargetCount || C.FINAL_TARGET_COUNT;
       this.isAutoAddEnabled = data.isAutoAddEnabled !== false;
+      this.frozen = data.frozen || false;
     }
   }
 

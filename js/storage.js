@@ -189,6 +189,37 @@
       });
     },
 
+    /**
+     * Stamp every not-yet-marked spin currently recorded for a machine with
+     * a `seriesMarker` (an archived SeriesDB record's timestamp, or a
+     * synthetic marker for a discarded series) instead of deleting them.
+     * Spins are never removed from SpinDB — a machine's full spin tape
+     * (every number physically landed on, across every series) has to
+     * persist forever so it can be displayed in full later, with markers
+     * showing where each series boundary fell. Called once a series is
+     * archived (New Series / Save & Start New Series) or discarded, so the
+     * next load only replays spins that are still unmarked (i.e. belong to
+     * the current, unfinished series) — see loadPreviousTable in app.js.
+     */
+    async markArchived(machineId, marker) {
+      const db = await openDB();
+      const spins = await this.getSpinsByMachine(machineId);
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(SPIN_STORE, 'readwrite');
+        const store = tx.objectStore(SPIN_STORE);
+        for (const s of spins) {
+          if (s.seriesMarker == null) {
+            s.seriesMarker = marker;
+            store.put(s);
+          }
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    },
+
+    // Retained for admin/debug use (e.g. wiping a table entirely) — no
+    // longer used by the series-end flow, which marks instead of deleting.
     async clearMachine(machineId) {
       const db = await openDB();
       const spins = await this.getSpinsByMachine(machineId);

@@ -357,19 +357,28 @@
       this.engine.onChange((event, data) => {
         this.update();
         if (event === 'seriesComplete') {
-          this._autoSaveSeries(data);
-          this._showToast(`SERIES #${data.seriesCount} COMPLETE — ${data.totalSpins} spins`, 4000);
+          // Nothing is archived here anymore. The board freezes and waits
+          // for the user to press New Series (which archives + clears the
+          // live spin backlog) or Keep Reviewing (which just collapses the
+          // banner). See showSeriesCompleteBanner / archiveAndReset below.
+          this._showToast(`SERIES #${data.seriesCount} COMPLETE, ${data.totalSpins} spins`, 4000);
+          this.showSeriesCompleteBanner('auto');
         }
         if (event === 'finalActivated') {
           this._showToast(`FINAL ${data.numbers.length} ACTIVATED`, 3000);
         }
         if (event === 'finalWarning') {
-          this._showToast('FINAL 9 — Prepare to bet', 3000);
+          this._showToast('FINAL 9. Prepare to bet', 3000);
         }
       });
     }
 
     _onNumberTap(num) {
+      // Frozen board (series complete, awaiting New Series) does not accept
+      // input at all — no engine mutation, no bankroll tracking, no SpinDB
+      // write.
+      if (this.engine.frozen) return;
+
       // Capture betting state BEFORE recordSpin modifies it
       // (recordSpin resets trinityMissStreak on hit, and can clear finalEightJustHit on series complete)
       const wasFinalActive = this.engine.finalActivated;
@@ -438,6 +447,7 @@
     }
 
     _onUndo() {
+      if (this.engine.frozen) return;
       if (this.engine.undoLastSpin()) {
         BTHG.Storage.SpinDB.deleteLastSpin(BTHG._currentMachineId || 'default');
         this.update();
@@ -462,6 +472,10 @@
     }
 
     _onEndSeries() {
+      // The auto-complete banner already covers "series is done" — the
+      // manual End Series overlay is for ending mid-series, so it makes no
+      // sense (and would risk a double archive) while frozen.
+      if (this.engine.frozen) return;
       if (this.engine.totalSpins === 0) return;
       this._showEndSeriesConfirm();
     }
@@ -503,29 +517,43 @@
       this.container.appendChild(overlay);
       const close = () => overlay.remove();
 
-      // Save & Start New Series — completes + banks the series, resets to spin 1
+      // Save & Start New Series — completes + banks the series, resets to spin 1.
+      // The series is now fully archived (spinHistory is saved inside
+      // seriesData). Its live spins in SpinDB are stamped with this
+      // record's timestamp as their seriesMarker (never deleted — the full
+      // spin tape for the machine has to persist forever), so the next load
+      // knows they belong to a finished series and skips them on replay.
       document.getElementById('es-save-new').addEventListener('click', () => {
         const seriesData = this.engine.manualEndSeries(fusionSnapshot, machineId, casino);
-        BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
-          this.update(); this._saveState(); close();
-          this._showSeriesEndConfirmation(seriesData, 'Series saved — new series started at spin 1.');
-        });
+        BTHG.Storage.SeriesDB.saveSeries(seriesData)
+          .then(() => BTHG.Storage.SpinDB.markArchived(machineId, seriesData.timestamp))
+          .then(() => {
+            this.update(); this._saveState(); close();
+            this._showSeriesEndConfirmation(seriesData, 'Series saved. New series started at spin 1.');
+          });
       });
 
-      // Save & Keep Counting — snapshot to history, do NOT reset
+      // Save & Keep Counting — snapshot to history, do NOT reset. The series
+      // is still live, so its spins in SpinDB are deliberately left
+      // unmarked (still "current series").
       document.getElementById('es-save-keep').addEventListener('click', () => {
         const seriesData = this.engine.saveSnapshot(fusionSnapshot, machineId, casino);
         BTHG.Storage.SeriesDB.saveSeries(seriesData).then(() => {
           this.update(); this._saveState(); close();
-          this._showSeriesEndConfirmation(seriesData, 'Snapshot saved — still counting where you left off.');
+          this._showSeriesEndConfirmation(seriesData, 'Snapshot saved. Still counting where you left off.');
         });
       });
 
-      // Discard & Start Over — drop current series (no save), reset to spin 1
+      // Discard & Start Over — drop current series (no save), reset to spin 1.
+      // Nothing was archived to SeriesDB, but the live spins for this
+      // machine still get stamped with a discard marker (not deleted) so
+      // the next load does not replay them as part of the fresh series.
       document.getElementById('es-discard').addEventListener('click', () => {
         this.engine.discardSeries();
-        this.update(); this._saveState(); close();
-        this._showToast('Series discarded — fresh start at spin 1.', 2500);
+        BTHG.Storage.SpinDB.markArchived(machineId, 'discard:' + Date.now()).then(() => {
+          this.update(); this._saveState(); close();
+          this._showToast('Series discarded. Fresh start at spin 1.', 2500);
+        });
       });
 
       document.getElementById('es-cancel').addEventListener('click', close);
@@ -549,37 +577,97 @@
     }
 
     /**
-     * Auto-save a completed series (all 38 numbers hit) to IndexedDB
+     * Series just completed (endType 'auto' from full board completion, or
+     * 'manual' if a future caller wires the manual End Series flow through
+     * here). Freeze the board so the final state stays visible for review
+     * instead of silently wiping it. Nothing is written to SeriesDB, and no
+     * spins are marked/reassigned in SpinDB, until New Series is pressed
+     * (archiveAndReset) — that is the fix for the field bug where a
+     * completed series' spins got reset out of the engine but stayed
+     * unmarked in SpinDB, then replayed on top of the next series on the
+     * following load.
      */
-    _autoSaveSeries(eventData) {
-      const fusionSnapshot = this.fusion.toJSON();
+    showSeriesCompleteBanner(endType) {
+      this.engine.frozen = true;
+      this.container.classList.add('series-complete');
+
+      // Guard against a duplicate banner (e.g. restoring a frozen snapshot
+      // on load into a container that already rendered one).
+      const already = document.getElementById('series-complete-banner');
+      if (already) already.remove();
+
+      const banner = document.createElement('div');
+      banner.id = 'series-complete-banner';
+      banner.innerHTML = `
+        <span class="scb-title">SERIES COMPLETE (${endType === 'auto' ? 'CLOSED' : 'MANUAL'})</span>
+        <button id="btn-new-series">New Series</button>
+        <button id="btn-keep-reviewing">Keep Reviewing</button>`;
+      this.container.prepend(banner);
+      banner.querySelector('#btn-new-series').addEventListener('click', () => this.archiveAndReset(endType));
+      banner.querySelector('#btn-keep-reviewing').addEventListener('click', () => banner.classList.add('scb-collapsed'));
+
+      this._persistFrozenSnapshot(endType);
+    }
+
+    /**
+     * Save the frozen board's full state to localStorage so it survives a
+     * reload. Read back in app.js's loadPreviousTable().
+     */
+    _persistFrozenSnapshot(endType) {
       const machineId = BTHG._currentMachineId || 'default';
       const casino = BTHG._currentCasino || 'Unknown';
-
-      const record = {
+      BTHG.Storage.LS.set('frozen_series', {
         machineId,
         casino,
-        seriesNumber: eventData.seriesCount,
-        totalSpins: eventData.totalSpins,
-        spinHistory: [...this.engine.history],
-        endType: 'auto',
+        endType,
+        engineState: this.engine.toJSON(),
         timestamp: Date.now(),
-        calibration: fusionSnapshot,
-        sideBetState: {
-          ago: { ...this.engine.sideBetAgo },
-          hits: { ...this.engine.sideBetHits },
-        },
-        seriesAverage: eventData.seriesAverage,
-        uniqueHit: 38,
-        remaining: 0,
-        finalEight: [],
-        finalActivated: true,
-        lifetimeSpins: this.engine.lifetimeSpins,
-      };
-
-      BTHG.Storage.SeriesDB.saveSeries(record).then(() => {
-        this._saveState();
       });
+    }
+
+    /**
+     * "New Series" pressed: archive the completed series to SeriesDB, stamp
+     * this machine's live spins with the archived record's timestamp as
+     * their seriesMarker (SpinDB never deletes spins — the full spin tape
+     * for a machine has to persist forever across every series for a future
+     * always-visible tape view), drop the frozen snapshot, and reset the
+     * engine for the next series. This is now the ONLY place a completed
+     * series gets saved or the board gets wiped.
+     */
+    archiveAndReset(endType) {
+      const machineId = BTHG._currentMachineId || 'default';
+      const casino = BTHG._currentCasino || 'Unknown';
+      const fusionSnapshot = this.fusion.toJSON();
+      const record = this._buildArchiveRecord(this.engine, endType, fusionSnapshot, machineId, casino);
+
+      BTHG.Storage.SeriesDB.saveSeries(record)
+        .then(() => BTHG.Storage.SpinDB.markArchived(machineId, record.timestamp))
+        .then(() => {
+          BTHG.Storage.LS.remove('frozen_series');
+          this.engine.resetSeries();
+          this.container.classList.remove('series-complete');
+          const banner = document.getElementById('series-complete-banner');
+          if (banner) banner.remove();
+          this.update();
+          this._saveState();
+          this._showToast('New series started at spin 1.', 2500);
+        });
+    }
+
+    // Pure record-builder, deliberately not touching `this`/DOM so it is
+    // testable in isolation (same pattern as _shouldTrackBet). Adds
+    // closerOffsets on top of getSeriesDataForSave's record: how many spins
+    // into the Final 8 closing phase each closing number took to hit,
+    // derived from finalEightFirstHitSpins (per-number spin index of first
+    // hit while in Final 8) relative to entrySpin (spin index Final 8
+    // activated at). If Final 8 never activated (series ended before
+    // closing), there is no closing phase, so closerOffsets is empty.
+    _buildArchiveRecord(engine, endType, fusionSnapshot, machineId, casino) {
+      const record = engine.getSeriesDataForSave(endType, fusionSnapshot, machineId, casino);
+      record.closerOffsets = record.entrySpin != null
+        ? Object.values(engine.finalEightFirstHitSpins).map(spinAt => spinAt - record.entrySpin)
+        : [];
+      return record;
     }
 
     onAction(fn) { this._listeners.push(fn); }
