@@ -86,3 +86,30 @@ Runs against all archived series + live series, recomputes after every spin. Rep
 
 ## Out of scope
 - Payments/paywall changes, camera/AR tracking, native apps, repo/hosting changes.
+
+---
+# Amendment A (2026-07-02, approved by Brandon in session)
+
+## 9. Coverage selector with data-ranked Final K
+- Bankroll setup gains "Numbers to bet" selector: 1 to 8. Zeros (0 and 00) are ALWAYS covered on top when betting is on; effective Trinity coverage = K + 2.
+- Locked to K=8 until the active machine profile has >= 4 completed archived series (ranking needs data). Under the gate the selector shows why it is locked.
+- The covered K numbers are NOT user-picked and NOT random: they are the members of the current Final 8 ranked by the pattern engine's resolution score (historical gap-resolution speed at current depth, wheel position, tail behavior on this machine). Top K by score are covered; membership re-ranks as numbers hit.
+- Changing K displays the honest tradeoff: hit chance per spin (K+2)/38 vs net per unit 36-(K+2), and its effect on progression depth.
+- Bankroll input range: $1 to $1,000,000.
+
+## 10. Straggler advisory
+- From archived series: distribution of spins from the (N-2)th closer to the last closers (tail stretch). When the live series has M numbers left, the advisory reports, with sample size: "M left. Based on your last S series, the final 2 typically take X to Y more spins. I suggest not betting on the last two." Same ranking data as Section 9, used in reverse.
+
+## 11. Early series end with ghost tracking
+- Ending a series with unhit numbers prompts: "Are you sure you want to end the series early?" On yes: series archives with endType 'early' and openStragglers = the unhit numbers.
+- A backend ghost watcher persists per machine. Every spin recorded in later series also checks open ghosts; when a straggler hits, the app writes the true resolution into the archived series record (archived series length + spins elapsed since), flagged crossedBoundary: true so tail statistics can weight the variance.
+- The new series board starts fully clean (all counts 0). Open stragglers display as small pills near the status strip ("Watching: 32, 6"); on hit the pill flashes, records, and disappears.
+
+## 12. Persistent number tape
+- The red/black spin tape always shows ALL spins ever tracked on the active machine, across every series (SpinDB is append-only; archived spins are marked with their series id, never deleted).
+- Between series the tape shows a marker chip: date and time the series ended, and time the next began.
+
+## 13. Timing engine (phase drift)
+- Learns the machine's launch cadence from spin timestamps (expected ~42 to 45 s).
+- Calibrator gains phase-reference taps (00 passing a fixed spot) recorded against the device clock.
+- Computes measured wheel-speed and cadence drift rates. If drift is low enough that projected pocket error stays under a threshold across the projection horizon, unlocks time-window predictions ("8: 4:32:12 to 4:33:56") with a confidence range that widens with horizon; otherwise displays the measured drift rate and limits predictions to the current-spin horizon. A phase-locked RNG light show is exposed by the physics refusing to line up; the app reports that outcome honestly.

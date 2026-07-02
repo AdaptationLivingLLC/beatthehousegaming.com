@@ -708,3 +708,79 @@ assert.deepEqual(S.parseInput('4,39,x').bad, ['39','x']);
 - Spec coverage: S1→T7, S2→T11, S3→T5, S4→T6+T8, S5→T2+T3+T13, S6→T12, S7→T9, S8→T10, defects list→T4. All covered.
 - Type consistency: `TrinityEngine.nextBet()` shape used identically in T3, T9, T13; `MachineProfiles` API identical in T1, T9, T10; `analyze()` signature identical in T6, T8, T10.
 - Deliberate simplification: `netPerUnit = 26` is derived, not hardcoded, so European wheels (coverage change) stay correct.
+
+---
+# Amendment A tasks (2026-07-02). Execution order: Tasks 6..13, then 15..19, then Task 14 (device pass + deploy) LAST.
+
+### Task 15: Tail statistics, Final-K ranking, straggler advisory
+
+**Files:**
+- Modify: `js/pattern-engine.js` (created in Task 6)
+- Create: `tests/test-tail-ranking.mjs`
+
+**Interfaces:**
+- Consumes: archived series records (spins, entrySpin, closerOffsets, endType, openStragglers?), wheelLayout.
+- Produces (added to `BTHG.PatternEngine`):
+  - `tailStats(archive) -> {samples, byPosition: [{closerIndex, medianExtraSpins, p25, p75}]}` — for each closer position (1st..Nth), spins elapsed from the (N-2)th closer, across archived series; resolutions flagged crossedBoundary are included but down-weighted 0.5.
+  - `rankFinal(archive, liveState, layout, K) -> {ranked: [{n, score, expectedSpins}], advisory: string|null}` — scores each current Final-8 member by (a) historical resolution speed at its current drought depth, (b) tail-position stretch from tailStats, (c) neighbor hit density on the verified layout. Top K = covered set. `advisory` is the straggler warning string with sample size when the tail predicts dragging (plain punctuation, no dashes).
+  - GATE: both return `{locked: true, reason}` when archive has < 4 completed series for the machine.
+
+- [ ] Test first (synthetic archive with engineered fast/slow tails; assert ranking order, gate at 3 series, advisory text contains sample count). Implement. `npm test` chain green. Commit.
+
+### Task 16: Coverage selector and Trinity coverage wiring
+
+**Files:**
+- Modify: `js/app.js` (bankroll panel), `js/roulette-table.js` (covered-set win detection), `js/bankroll.js`
+- Create: `tests/test-coverage-select.mjs`
+
+**Interfaces:**
+- Bankroll setup gains `#br-coverage` selector 1..8 (default 8). Locked (disabled, with reason shown) until MachineProfiles active machine has >= 4 completed archived series. Saved per machine profile as `coverageK`.
+- Bankroll amount field accepts $1 to $1,000,000 (update validation).
+- TrinityEngine instantiated with `coverage = K + 2`. Win detection uses `PatternEngine.rankFinal(...).ranked.slice(0,K)` plus 0 and 37; re-ranked after each hit.
+- Changing K displays tradeoff line: "Hit chance per spin (K+2)/38. Net per unit 36-(K+2)." with computed numbers.
+
+- [ ] Test: coverage math flows to TrinityEngine (netPerUnit = 36-(K+2)); gate enforcement; bankroll range validation. Implement, wire, `npm test` green, commit.
+
+### Task 17: Early series end with ghost tracking
+
+**Files:**
+- Modify: `js/series-engine.js`, `js/roulette-table.js`, `js/app.js`, `js/storage.js`
+- Create: `js/ghost-watcher.js`, `tests/test-ghost-watcher.mjs`
+
+**Interfaces:**
+- Ending a series with unhit numbers prompts: "Are you sure you want to end the series early?" (plain confirm overlay, ids `#btn-early-yes`, `#btn-early-no`).
+- On yes: archive record gets `endType: 'early'`, `openStragglers: number[]`, `closedAtSpin`.
+- `BTHG.GhostWatcher` (UMD): `openGhosts(machineId) -> [{seriesId, n, sinceSpin}]`; `onSpin(machineId, n, currentSeriesSpinIndex)` — when n matches an open ghost, updates the archived series record: resolution = closedAtSpin + spins elapsed since close (across boundary), sets `crossedBoundary: true`, removes ghost. Persisted in localStorage `bthg_ghosts_<machineId>`.
+- UI: pills near status strip "Watching: 32, 6" (id `#ghost-pills`); pill flashes and disappears on hit. New series board starts fully clean.
+- Wire `GhostWatcher.onSpin` into the same spin path as table taps and stealth entry.
+
+- [ ] Test: early end stores stragglers; ghost resolves into archived record with correct cross-boundary spin math; pills data source. Implement, `npm test` green, commit.
+
+### Task 18: Persistent number tape with series markers
+
+**Files:**
+- Modify: `js/app.js` or `js/roulette-table.js` (wherever the existing red/black history strip renders), `js/storage.js` (query all spins incl. archived marks)
+- Create: `tests/test-tape.mjs`
+
+**Interfaces:**
+- The tape renders ALL SpinDB spins for the active machine, oldest to newest, regardless of seriesMarker (Task 5 marks, never deletes).
+- Between series: marker chip showing "Series ended <date> <time>" and "New series <time>" derived from the archived record timestamps and the first spin of the next series. Marker element class `tape-series-marker`.
+- Tape is display-only; engine replay still filters to current series (Task 5 behavior unchanged).
+
+- [ ] Test: tape data assembler returns full history with marker entries at boundaries. Implement, `npm test` green, commit.
+
+### Task 19: Timing engine (cadence and phase drift)
+
+**Files:**
+- Create: `js/timing-engine.js`, `tests/test-timing-engine.mjs`
+- Modify: `js/calibration.js` (phase-reference tap: user taps when 00 passes a fixed spot; stores {tClock, kind:'phase'})
+- Modify: `js/app.js` (timing panel section)
+
+**Interfaces:**
+- `BTHG.TimingEngine` (UMD):
+  - `learnCadence(spinTimestamps) -> {meanS, sdS, samples}` (expect ~42 to 45 s on this machine class).
+  - `phaseDrift(phaseTaps, wheelOmega) -> {driftRadPerMin, pocketErrorAtMin: (m)=>pockets}` — fits phase residuals over time.
+  - `predictWindows({cadence, phase, wheelOmega, k, layout, horizonS}) -> [{n, tStart, tEnd, confidence}] | {limited: true, reason, driftRate}` — unlocks wall-clock hit windows ONLY when projected pocket error stays < 2 pockets over the horizon; otherwise returns limited with the measured drift rate. If physics residuals are inconsistent with a mechanical wheel (drift fit residuals ~ uniform), returns `{limited:true, reason:'outcomes not phase-locked (possible RNG display)'}`.
+- All predictions display confidence and widen with horizon. Timestamps come from SpinDB (already stored per spin).
+
+- [ ] Test with synthetic phase-stable and phase-drifting tap series (known omega): stable unlocks windows, drifting returns limited with correct rate sign. Implement, `npm test` green, commit.
