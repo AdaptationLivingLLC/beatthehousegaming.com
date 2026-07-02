@@ -24,9 +24,13 @@
      re-color every chip label individually.
    ============================================================ */
 
+/* Casino = the original BTHG identity: black background, gold accent.
+   Matches the marketing site's palette (index.html :root). Green appears
+   ONLY where the app already used it (win indicators #5EFF00), never as
+   a background. Per Brandon 2026-07-02: backgrounds stay black. */
 body[data-theme="casino"] {
-  --bg: #0a1f10; --surface: #122b18; --line: #2c4a33;
-  --text: #f4efe1; --muted: #9fb3a4; --accent: #d4af37; --accent2: #5EFF00;
+  --bg: #0a0a0a; --surface: #141414; --line: #2a2a2a;
+  --text: #ffffff; --muted: #cccccc; --accent: #d4af37; --accent2: #5EFF00;
   --red: #c8362e; --black: #171717; --green: #0f6b2f; --win: #5EFF00; --loss: #ff4444;
 
   --accent-rgb: 212, 175, 55;
@@ -34,7 +38,7 @@ body[data-theme="casino"] {
   --loss-rgb: 255, 68, 68;
   --red-rgb: 200, 54, 46;
   --gold-glow: rgba(212, 175, 55, 0.4);
-  --cell-bg: rgba(10, 10, 10, 0.6);
+  --cell-bg: rgba(20, 20, 20, 0.75);
 }
 
 body[data-theme="midnight"] {
