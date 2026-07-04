@@ -626,6 +626,12 @@
           .then(() => BTHG.Storage.SpinDB.markArchived(machineId, seriesData.timestamp))
           .then(() => {
             this.update(); this._saveState(); close();
+            // Repopulate the feed from the archive right away (including
+            // the record just saved) instead of leaving it blank until the
+            // new series' first spin. Insights derive from the archive on
+            // every analyze, so they survive series boundaries; the blank
+            // gap read as "all my past data vanished" on the floor.
+            this._updateIntelFeed();
             this._showSeriesEndConfirmation(seriesData, 'Series saved. New series started at spin 1.');
           });
       });
@@ -650,6 +656,8 @@
         if (BTHG.IntelFeed) BTHG.IntelFeed.reset();
         BTHG.Storage.SpinDB.markArchived(machineId, 'discard:' + Date.now()).then(() => {
           this.update(); this._saveState(); close();
+          // Same repopulate-from-archive as the other two boundaries.
+          this._updateIntelFeed();
           this._showToast('Series discarded. Fresh start at spin 1.', 2500);
         });
       });
@@ -769,6 +777,10 @@
           if (banner) banner.remove();
           this.update();
           this._saveState();
+          // Repopulate the feed from the archive right away (including the
+          // record just saved) so past-series insights are visible before
+          // the new series' first spin — same as the manual save path.
+          this._updateIntelFeed();
           this._showToast('New series started at spin 1.', 2500);
         })
         .finally(() => { this._archiving = false; });
