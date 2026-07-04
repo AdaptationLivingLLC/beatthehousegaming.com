@@ -516,6 +516,19 @@
         res.alerts.forEach(a => BTHG.IntelFeed.push(a));
         BTHG.IntelFeed.setSignal(res.entry);
       }).catch(e => console.warn('IntelFeed update failed:', e));
+
+      // Cycle watch (Task 22): re-hit gap tracking on the machine's
+      // continuous spin tape (crossing series boundaries, sitting
+      // aware) — a separate view from PatternEngine's per-series cycle
+      // logic. Read-only fetch of the full tape from SpinDB; its own
+      // .catch so a CycleWatch failure can never break the
+      // PatternEngine path above.
+      if (BTHG.CycleWatch) {
+        BTHG.Storage.SpinDB.getSpinsByMachine(machineId).then(tape => {
+          const cw = BTHG.CycleWatch.analyze({ tape, nowLive: Date.now() });
+          cw.alerts.forEach(a => BTHG.IntelFeed.push(a));
+        }).catch(e => console.warn('CycleWatch update failed:', e));
+      }
     }
 
     _flashCell(num) {
