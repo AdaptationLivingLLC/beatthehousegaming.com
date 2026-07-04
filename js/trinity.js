@@ -5,18 +5,8 @@
   function roundUpTo(value, inc) { return Math.ceil((value - 1e-9) / inc) * inc; }
 
   class TrinityEngine {
-    constructor({ minUnit, maxUnit, coverage = 10, payout = 35, floorUnits = 1, tableMinUnit }) {
+    constructor({ minUnit, maxUnit, coverage = 10, payout = 35, floorUnits = 1 }) {
       this.minUnit = minUnit; this.maxUnit = maxUnit;
-      // Important 4 (additive, informational only — no math here reads
-      // this): minUnit is actually the DENOMINATION (the escalation floor/
-      // quantum), not the table's real minimum betting unit — those became
-      // two different things once a denomination could be set independently
-      // (Task 23). Stash the real table minimum too, defaulting to minUnit
-      // when a caller does not pass one (older/test call sites), so
-      // anything holding a TrinityEngine reference (e.g. the BET ON toggle
-      // guard) can validate the denomination against the true table bounds
-      // without a separate handle back to the active profile.
-      this.tableMinUnit = tableMinUnit != null ? tableMinUnit : minUnit;
       this.coverage = coverage; this.payout = payout;
       this.floor = floorUnits * minUnit;
       this.spent = 0; this.level = 0;
@@ -40,34 +30,6 @@
       return { net, spent: spentTotal };
     }
     reset() { this.spent = 0; this.level = 0; }
-
-    // Task 23: the live betting path's escalation coverage (Final-N members
-    // only — 0/00 are excluded from the deficit that drives escalation per
-    // the brief's rule 6) can change spin to spin as Final-N membership
-    // ages out / auto-refills. Re-point coverage/netPerUnit at the new
-    // count WITHOUT touching the accumulated cycle deficit (spent/level) —
-    // those are real dollars already committed and must survive a coverage
-    // change untouched.
-    setCoverage(coverage) {
-      this.coverage = coverage;
-      this.netPerUnit = (this.payout + 1) - coverage;
-    }
-
-    // Task 23: serialize/restore the MUTABLE cycle state only (spent, level,
-    // coverage). minUnit/maxUnit/payout/floor are fixed at construction and
-    // are not part of this round trip — callers restore into an engine
-    // already constructed with the same config. This is what per-spin undo
-    // snapshots (rule 10) rely on to put Trinity back exactly as it was
-    // pre-spin, instead of recomputing and hoping.
-    toJSON() {
-      return { spent: this.spent, level: this.level, coverage: this.coverage };
-    }
-    fromJSON(data) {
-      if (!data) return;
-      this.spent = data.spent || 0;
-      this.level = data.level || 0;
-      if (data.coverage != null) this.setCoverage(data.coverage);
-    }
   }
   BTHG.TrinityEngine = TrinityEngine;
   return { TrinityEngine };

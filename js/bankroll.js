@@ -24,13 +24,6 @@
       this.totalWagered = 0;
       this.peakBankroll = this.totalBankroll;
       this.trinity = new TrinityCycle();
-      // Task 23 (rule 3): the wins bucket. Every covered hit's full payout
-      // lands here first; only the amount needed to top totalBankroll back
-      // up to sessionStartBankroll ever transfers out of it (see
-      // BTHG.Bankroll.applyWinsBucketPayout below). Whatever is left stays
-      // here permanently — it never funds a bet and is never folded back
-      // into totalBankroll beyond the top-up.
-      this.winsBucket = 0;
       this._listeners = [];
     }
 
@@ -125,9 +118,6 @@
         totalWagered: this.totalWagered,
         peakBankroll: this.peakBankroll,
         trinity: this.trinity.toJSON(),
-        // Task 23 — additive field, no schema/version change (localStorage
-        // session blob, not IndexedDB).
-        winsBucket: this.winsBucket,
       };
     }
 
@@ -142,9 +132,6 @@
       this.totalWagered = data.totalWagered || 0;
       this.peakBankroll = data.peakBankroll || data.totalBankroll;
       if (data.trinity) this.trinity.fromJSON(data.trinity);
-      // Additive — legacy sessions saved before Task 23 have no winsBucket
-      // field at all; default to 0 rather than crashing/going undefined.
-      this.winsBucket = data.winsBucket || 0;
     }
   }
 
@@ -251,121 +238,86 @@
    * matching SeriesEngine#getTrinityNumbers() — 0/00 are always covered,
    * whether or not they happen to already be inside finalEight.
    *
-   * Returns worstDepth/worstSpend (the peak reached across the whole
-   * replay) AND currentLevel/currentSpent (the state after the LAST spin
+   * Returns worstDepth/worstSpend (the peak reached in any single bounded
+   * cycle) AND currentLevel/currentSpent (the state after the LAST spin
    * replayed — i.e. "where the live cycle stands right now" when called
    * on an in-progress series). Returns null if there is nothing usable to
    * replay (series never reached Final 8, or no spins after activation).
-   *
-   * Important 3 (review round 3) — the escalation/reset semantics here now
-   * match js/roulette-table.js's real live-betting path exactly, instead of
-   * an older, simpler approximation that could disagree with it:
-   *   - 0/00 stakes are real cash (counted in worstSpend/currentSpent, the
-   *     cash a bankroll must actually cover) but are EXCLUDED from the
-   *     escalation deficit that sizes the next bet (rule 6) — a separate
-   *     `escalationCoverage` (Final-N members only) drives the engine,
-   *     while `fullCoverage` (+0/00) prices every spin's real stake/payout.
-   *   - A covered hit resets the cycle only if the real cash net is back to
-   *     zero or positive (rule 7); 0/00 hits reset UNCONDITIONALLY (rule 6)
-   *     regardless of the cash net; a non-recovering hit escalates exactly
-   *     like a miss instead of resetting.
-   *   - Priced at the denomination actually being bet (`denomination`,
-   *     i.e. bankroll.baseBet) when one is known, falling back to the
-   *     table minimum (`minUnit`) only when it is not (e.g.
-   *     worstFromArchive's $1-unit scaling pass, which never passes one on
-   *     purpose). `pricedAt`/`pricedWithDenomination` on the result say
-   *     which was actually used, for callers that want to state it.
    */
-  function replaySeriesCycle({ spinHistory, entrySpin, finalEight, closerOffsets, minUnit = 1, denomination } = {}) {
+  function replaySeriesCycle({ spinHistory, entrySpin, finalEight, closerOffsets, minUnit = 1 } = {}) {
     if (entrySpin == null) return null;
     const spins = (spinHistory || []).slice(entrySpin);
     if (spins.length === 0) return null;
+    const coverageSet = new Set([...(finalEight || []), 0, 37]);
+    const coverage = coverageSet.size;
 
-    const usedDenomination = denomination != null && denomination > 0;
-    const unit = usedDenomination ? denomination : minUnit;
-
-    // Full coverage (real cash staked/paid every spin) always includes
-    // 0/00 on top of finalEight. Escalation coverage (rule 6) excludes
-    // 0/00 — only real Final-N members count toward the deficit driving
-    // the next bet's size.
-    const fullCoverage = new Set([...(finalEight || []), 0, 37]).size;
-    const escalationCoverage = new Set(finalEight || []).size;
-
-    let result;
     if (closerOffsets !== undefined) {
-      const closerSet = new Set(closerOffsets);
-      const isHitAt = (n, i) => (n === 0 || n === 37) || closerSet.has(i + 1);
-      result = replayContinuous(spins, isHitAt, unit, escalationCoverage, fullCoverage);
-    } else {
-      // Fallback (no closerOffsets field at all — a record saved before
-      // Task 5): the only hit signal available is the static end-of-series
-      // finalEight snapshot, so an earlier real closer hit whose number has
-      // since aged out of it replays as a miss (the same known, flagged
-      // limitation as before — see the doc comment above this function).
-      const coverageSet = new Set([...(finalEight || []), 0, 37]);
-      const isHitAt = (n) => coverageSet.has(n);
-      result = replayContinuous(spins, isHitAt, unit, escalationCoverage, fullCoverage);
-      result.estimated = true;
+      const resetOffsets = new Set(closerOffsets);
+      spins.forEach((n, i) => { if (n === 0 || n === 37) resetOffsets.add(i + 1); });
+      return replayBoundedCycles(spins, [...resetOffsets], minUnit, coverage);
     }
-    result.pricedAt = unit;
-    result.pricedWithDenomination = usedDenomination;
-    return result;
+
+    const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
+    let worstDepth = 0, worstSpend = 0;
+    for (const n of spins) {
+      if (coverageSet.has(n)) {
+        engine.recordHit();
+      } else {
+        engine.recordMiss();
+        if (engine.level > worstDepth) worstDepth = engine.level;
+        if (engine.spent > worstSpend) worstSpend = engine.spent;
+      }
+    }
+    return { worstDepth, worstSpend, currentLevel: engine.level, currentSpent: engine.spent, estimated: true };
   }
 
   /**
-   * Single continuous replay of `spins` through one running TrinityEngine
-   * plus a real cash ledger (`cashNet`), matching
-   * js/roulette-table.js#_applyLiveBetting spin for spin:
-   *
-   *   - Every spin, the current bet (`trinity.nextBet().perNumber`) is
-   *     staked on ALL covered numbers (`fullCoverage`, including 0/00) and
-   *     deducted from the ledger BEFORE the outcome is known — this is the
-   *     real trough a live bankroll would hit that spin, tracked into
-   *     `worstSpend`.
-   *   - `isHitAt(spinValue, index)` says whether this spin is a covered
-   *     hit. A hit pays 36x the per-number bet into the ledger. A 0/00 hit
-   *     resets the cycle (engine + ledger) UNCONDITIONALLY (rule 6). A
-   *     Final-N hit resets ONLY if the ledger is back to zero or positive
-   *     (rule 7); otherwise the deficit carries forward exactly like a
-   *     miss (`trinity.recordMiss()`, escalating on `escalationCoverage`
-   *     only — 0/00 stakes never count toward that deficit, though they
-   *     are real cash in the ledger). A miss is `trinity.recordMiss()`,
-   *     same treatment as a non-recovering hit.
-   *
-   * worstDepth/worstSpend are the running peaks across the WHOLE replay
-   * (never reset when the cycle itself resets, so the worst of several
-   * real cycles across a closing phase is still captured, exactly like the
-   * old bounded-cycles approach did); currentLevel/currentSpent are the
-   * state after the last spin replayed.
+   * Replay `spins` as a sequence of bounded real Trinity cycles, reset at
+   * each offset in `resetOffsets` (1-based, counted from the start of
+   * `spins` — matches how closerOffsets/`spinAt - entrySpin` line up with
+   * `spinHistory.slice(entrySpin)`, since totalSpins increments before the
+   * spin is pushed to history: offset `o` is `spins[o - 1]`). Everything
+   * strictly between the previous reset (or the start) and the next reset
+   * is a real miss; the trailing remainder after the last reset (series
+   * ended mid-streak, or a live series still mid-cycle) is its own bounded
+   * cycle too. worst = the deepest/costliest of all these cycles, never a
+   * merged total across cycle boundaries.
    */
-  function replayContinuous(spins, isHitAt, unit, escalationCoverage, fullCoverage) {
-    const trinity = new BTHG.TrinityEngine({ minUnit: unit, maxUnit: Infinity, coverage: escalationCoverage });
-    let cashNet = 0;
-    let worstDepth = 0, worstSpend = 0;
+  function replayBoundedCycles(spins, resetOffsets, minUnit, coverage) {
+    const resets = resetOffsets
+      .filter(o => Number.isFinite(o) && o > 0 && o <= spins.length)
+      .sort((a, b) => a - b);
 
-    for (let i = 0; i < spins.length; i++) {
-      const n = spins[i];
-      const bet = trinity.nextBet();
-      const stake = bet.perNumber * fullCoverage;
-      cashNet -= stake;
-      if (-cashNet > worstSpend) worstSpend = -cashNet;
+    let worstDepth = 0, worstSpend = 0, currentLevel = 0, currentSpent = 0;
+    let cursor = 0;
 
-      if (isHitAt(n, i)) {
-        const isZeroHit = n === 0 || n === 37;
-        cashNet += 36 * bet.perNumber;
-        if (isZeroHit || cashNet >= 0) {
-          trinity.reset();
-          cashNet = 0;
-        } else {
-          trinity.recordMiss();
-        }
-      } else {
-        trinity.recordMiss();
+    for (const offset of resets) {
+      const hitIdx = offset - 1;
+      if (hitIdx < cursor) continue; // duplicate/out-of-order offset guard
+      const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
+      for (let i = cursor; i < hitIdx; i++) {
+        engine.recordMiss();
+        if (engine.level > worstDepth) worstDepth = engine.level;
+        if (engine.spent > worstSpend) worstSpend = engine.spent;
       }
-      if (trinity.level > worstDepth) worstDepth = trinity.level;
+      engine.recordHit();
+      currentLevel = engine.level;
+      currentSpent = engine.spent;
+      cursor = hitIdx + 1;
     }
 
-    return { worstDepth, worstSpend, currentLevel: trinity.level, currentSpent: Math.max(0, -cashNet) };
+    if (cursor < spins.length) {
+      const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
+      for (let i = cursor; i < spins.length; i++) {
+        engine.recordMiss();
+        if (engine.level > worstDepth) worstDepth = engine.level;
+        if (engine.spent > worstSpend) worstSpend = engine.spent;
+      }
+      currentLevel = engine.level;
+      currentSpent = engine.spent;
+    }
+
+    return { worstDepth, worstSpend, currentLevel, currentSpent };
   }
 
   /**
@@ -503,46 +455,10 @@
         const worstPart = (live.worstSpend != null && live.worstDepth != null)
           ? ` Your worst tracked cycle at this unit is ${money(live.worstSpend)} across ${live.worstDepth} misses.`
           : '';
-        // Important 3: say which unit price this live line actually used —
-        // it can legitimately differ from the table minimum shown
-        // elsewhere on the panel once a denomination is set, and the two
-        // disagreeing with no explanation was the bug being fixed.
-        const pricedPart = live.pricedAt != null
-          ? (live.pricedWithDenomination
-              ? ` Priced at your ${money(live.pricedAt)} denomination.`
-              : ` Priced at your ${money(live.pricedAt)} table minimum, since no denomination is set yet.`)
-          : '';
-        liveText = `Right now this cycle is ${live.currentLevel} misses deep, ${money(live.currentSpent)} spent.${worstPart}${pricedPart}`;
+        liveText = `Right now this cycle is ${live.currentLevel} misses deep, ${money(live.currentSpent)} spent.${worstPart}`;
       }
     }
     return { guaranteedMinimum, path, live: liveText };
-  }
-
-  /**
-   * Task 23 (rule 3) — the wins-bucket money model for LIVE betting. Every
-   * covered hit's full payout lands in the wins bucket FIRST. From the
-   * bucket, transfer back into the bankroll ONLY the amount needed to top
-   * it back up to startingBankroll — never more, so the bankroll never
-   * shows above its starting amount. Whatever remains in the bucket stays
-   * there permanently: the wins bucket never funds a bet and profit is
-   * never folded back into the bankroll beyond the top-up.
-   *
-   * Pure — no class, no side effects — so it can be driven directly by
-   * tests and reused identically from the live tap handler. `bankroll` here
-   * is the CURRENT bankroll amount (already net of this spin's stake
-   * deduction, which happens before the payout in the caller), not
-   * sessionStartBankroll.
-   */
-  function applyWinsBucketPayout({ bankroll, winsBucket, startingBankroll, payout }) {
-    let newBucket = (winsBucket || 0) + (payout || 0);
-    let newBankroll = bankroll;
-    const need = startingBankroll - newBankroll;
-    if (need > 0) {
-      const transfer = Math.min(need, newBucket);
-      newBankroll += transfer;
-      newBucket -= transfer;
-    }
-    return { bankroll: newBankroll, winsBucket: newBucket };
   }
 
   BTHG.Bankroll = {
@@ -551,7 +467,6 @@
     replaySeriesCycle,
     worstFromArchive,
     resolveProfileForLimits,
-    applyWinsBucketPayout,
   };
 
   // ---- Chip Rendering Helper ----------------------------------

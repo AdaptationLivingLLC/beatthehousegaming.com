@@ -318,15 +318,6 @@
       return targets.sort((a, b) => a - b);
     }
 
-    // Task 23 (rule 6): the Final-N members currently covered, EXCLUDING 0
-    // and 00 — this is the coverage count that drives the live Trinity
-    // engine's escalation deficit. 0/00 are always bet and always paid on a
-    // hit (see getTrinityNumbers), but their stake is deliberately excluded
-    // from the number that sizes the next escalated bet.
-    getEscalationNumbers() {
-      return this.getTrinityNumbers().filter(n => n !== 0 && n !== 37);
-    }
-
     getTrinityTotalBet(baseBet) {
       return this.getTrinityNumbers().length * baseBet * this.getTrinityMultiplier();
     }

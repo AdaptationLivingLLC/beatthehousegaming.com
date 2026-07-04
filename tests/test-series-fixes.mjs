@@ -152,35 +152,14 @@ function activateAndAutoClose(engine) {
   console.log('lifetimeSpins stays consistent after undo: PASS');
 }
 
-// ---- Test 4: bankroll P&L tracking decision (Task 23 rule 11 supersedes
-// Task 4's decision here: D2/"bets were not counting" was one bug, but
-// Brandon's live-floor rule 11 is explicit — "while OFF nothing is deducted
-// or counted (no phantom bets)". So bettingEnabled is now a REQUIRED third
-// argument the caller must consult, reversing Task 4's original "must not
-// depend on bettingEnabled" fix.
+// ---- Test 4: bankroll P&L tracking decision must not depend on bettingEnabled
 {
   const RT = loadBTHG(['js/utils.js', 'js/roulette-table.js']).RouletteTableUI;
   assert.equal(typeof RT.prototype._shouldTrackBet, 'function', '_shouldTrackBet must exist on RouletteTableUI');
-  assert.equal(RT.prototype._shouldTrackBet(true, 9, true), true, 'active Trinity bet + BET ON must be tracked');
-  assert.equal(RT.prototype._shouldTrackBet(false, 9, true), false, 'no active Final 8 => nothing to track');
-  assert.equal(RT.prototype._shouldTrackBet(true, 0, true), false, 'zero numbers played => nothing to track');
-  assert.equal(RT.prototype._shouldTrackBet(true, 9, false), false, 'BET OFF => nothing tracked even with an active Trinity bet (rule 11)');
-  console.log('bankroll tracking requires Final 8 active, numbers played, AND bettingEnabled (rule 11): PASS');
-}
-
-// ---- Test 5: getEscalationNumbers (Task 23 rule 6) — Final-N members only,
-// excluding 0/00, regardless of whether 0/00 happen to also be unhit
-// members of finalEight itself.
-{
-  const engine = new BTHG.SeriesEngine();
-  engine.finalEight = [1, 4, 7, 0, 37];
-  assert.deepEqual([...engine.getEscalationNumbers()], [1, 4, 7], 'excludes 0 and 37 even when they are finalEight members');
-  assert.deepEqual([...engine.getTrinityNumbers()], [0, 1, 4, 7, 37], 'sanity: full coverage still includes 0/00 (dedup)');
-
-  engine.finalEight = [2, 5, 8];
-  assert.deepEqual([...engine.getEscalationNumbers()], [2, 5, 8], '0/00 not in finalEight are still excluded from escalation count');
-  assert.deepEqual([...engine.getTrinityNumbers()], [0, 2, 5, 8, 37]);
-  console.log('getEscalationNumbers excludes 0/00 from the escalation coverage count: PASS');
+  assert.equal(RT.prototype._shouldTrackBet(true, 9), true, 'active Trinity bet must be tracked');
+  assert.equal(RT.prototype._shouldTrackBet(false, 9), false, 'no active Final 8 => nothing to track');
+  assert.equal(RT.prototype._shouldTrackBet(true, 0), false, 'zero numbers played => nothing to track');
+  console.log('bankroll tracking decoupled from bettingEnabled: PASS');
 }
 
 console.log('series-fixes: ALL PASS');
