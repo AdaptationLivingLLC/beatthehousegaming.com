@@ -53,6 +53,13 @@ function setupFinal1() {
   const trinity = new BTHG.TrinityEngine({ minUnit: 5, maxUnit: 500 });
   const rt = new RT(null, engine, bankroll, {}, {}, trinity);
   rt.bettingEnabled = true;
+  // The 36 setup spins above went straight through engine.recordSpin(),
+  // never through _onNumberTap/_pushMoneySnapshot (rt did not exist yet) —
+  // same shape as app.js's loadPreviousTable reload replay (Critical 1).
+  // Backfill so _moneyHistory starts index-aligned with engine.history,
+  // exactly like that fix does, instead of carrying a pre-existing test-
+  // fixture desync into every test that uses this helper.
+  while (rt._moneyHistory.length < engine.history.length) rt._pushMoneySnapshot();
   return { engine, bankroll, trinity, rt };
 }
 
@@ -320,6 +327,127 @@ function setupFinal1() {
   const mult = rt._currentTrinityMultiplier();
   assert.ok(mult >= 1, 'multiplier reflects real escalation');
   console.log('Test 10 (_currentBetPerNumber/_currentTrinityMultiplier reflect the real engine, pure): PASS');
+}
+
+// ---- Test 11a: Critical 1 — direct engine.recordSpin() calls that bypass
+// _onNumberTap (app.js's loadPreviousTable reload replay and the Pocket
+// Timing overlay both do this) must push a money snapshot FIRST, matching
+// the fix at both call sites. These spins move no money at all, so undoing
+// one must restore the exact same (unchanged) money state. -----------------
+{
+  const { bankroll, trinity, rt, engine } = setupFinal1();
+
+  const before = {
+    bankroll: bankroll.toJSON(), trinity: trinity.toJSON(),
+    cycleNet: rt._trinityCycleNet, betSpinCount: rt._betSpinCount,
+  };
+
+  // Exactly what app.js now does at both direct-recordSpin call sites:
+  // push a snapshot of the CURRENT state, then record the spin with no
+  // _applyLiveBetting involved (no money moves).
+  const moneyLenBefore = rt._moneyHistory.length;
+  const engineLenBefore = engine.history.length;
+  assert.equal(moneyLenBefore, engineLenBefore, 'setup: fixture starts aligned');
+  rt._pushMoneySnapshot();
+  engine.recordSpin(1);
+  assert.equal(rt._moneyHistory.length, moneyLenBefore + 1, 'exactly one snapshot pushed');
+  assert.equal(engine.history.length, engineLenBefore + 1, 'exactly one spin recorded');
+  assert.equal(rt._moneyHistory.length, engine.history.length, 'stays index-aligned with engine.history');
+
+  assert.ok(driveUndo(rt), 'undo must succeed');
+  assert.deepEqual(bankroll.toJSON(), before.bankroll, 'bankroll restored exactly (untracked spin moved no money)');
+  assert.deepEqual(trinity.toJSON(), before.trinity, 'trinity restored exactly');
+  assert.equal(rt._trinityCycleNet, before.cycleNet, 'cycle net restored exactly');
+  assert.equal(rt._betSpinCount, before.betSpinCount, 'bet count restored exactly (untracked spin never counted as bet)');
+  console.log('Test 11a (untracked direct recordSpin + snapshot -> undo restores identical money state, Critical 1): PASS');
+}
+
+// ---- Test 11b: the alignment guard warns loudly (never silently no-ops)
+// when _moneyHistory and engine.history have genuinely drifted apart — the
+// exact bug this closes (D3 resurfacing via a second, un-snapshotted
+// route, e.g. a future call site that forgets to push). --------------------
+{
+  const { rt, engine } = setupFinal1();
+  assert.equal(rt._moneyHistory.length, engine.history.length, 'setup: fixture starts aligned');
+
+  // Deliberately reproduce the BUG being fixed: record a spin directly with
+  // NO snapshot pushed first (i.e. skip the fix), the way the two call
+  // sites used to.
+  engine.recordSpin(1);
+  assert.notEqual(rt._moneyHistory.length, engine.history.length, 'setup: histories are desynced on purpose');
+
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (...args) => warnings.push(args.join(' '));
+  let aligned;
+  try {
+    aligned = rt._checkMoneyHistoryAlignment();
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(aligned, false);
+  assert.equal(warnings.length, 1, 'exactly one warning fired, never a silent no-op');
+  assert.ok(warnings[0].includes(String(rt._moneyHistory.length)), 'warning names the _moneyHistory length');
+  assert.ok(warnings[0].includes(String(engine.history.length)), 'warning names the engine.history length');
+
+  // Aligned state (the normal case) must NOT warn.
+  const { rt: rt2 } = setupFinal1();
+  console.warn = (...args) => warnings.push(args.join(' '));
+  let aligned2;
+  try {
+    aligned2 = rt2._checkMoneyHistoryAlignment();
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(aligned2, true);
+  assert.equal(warnings.length, 1, 'no new warning when histories are aligned');
+  console.log('Test 11b (alignment guard warns loudly on real desync, silent when aligned, Critical 1): PASS');
+}
+
+// ---- Test 12: Critical 2 — a mid-cycle denomination/table-max change
+// (RouletteTableUI#_onTrinitySettingsChanged, called by app.js's
+// syncTrinityEngineFromProfile when it rebuilds trinityEngine) must reset
+// _trinityCycleNet to 0, or a stale deficit keeps gating rule 7's
+// conditional-reset decision against a Trinity that has no memory of it —
+// a win could then never reset again. betSpinCount is a session counter
+// and must NOT reset. One plain-word IntelFeed card announces the restart,
+// but only when an engine already existed (not on first-ever setup). ------
+{
+  const { bankroll, trinity, rt } = setupFinal1();
+
+  driveSpin(rt, 1); // miss
+  driveSpin(rt, 2); // miss
+  driveSpin(rt, 3); // miss
+  assert.ok(rt._trinityCycleNet < 0, 'setup: 3 misses have driven the cycle net negative');
+  const betSpinCountBefore = rt._betSpinCount;
+
+  const pushed = [];
+  BTHG.IntelFeed = { push: (alert) => pushed.push(alert) };
+
+  // Simulate the rebuild branch firing (denomination changed) — app.js
+  // constructs a fresh TrinityEngine and calls this exactly once.
+  const freshTrinity = new BTHG.TrinityEngine({ minUnit: 10, maxUnit: 500 }); // new denomination: $10
+  rt.trinityEngine = freshTrinity;
+  rt._onTrinitySettingsChanged(true); // announce=true: an engine already existed
+
+  assert.equal(rt._trinityCycleNet, 0, 'cycle net resets to 0 on a mid-cycle settings change');
+  assert.equal(rt._betSpinCount, betSpinCountBefore, 'betSpinCount is a session counter, must NOT reset');
+  assert.equal(pushed.length, 1, 'exactly one IntelFeed card announces the restart');
+  assert.equal(pushed[0].kind, 'trinity');
+  assert.ok(pushed[0].message.length > 0);
+  assert.ok(!pushed[0].message.includes('–') && !pushed[0].message.includes('—'), 'no dashes in user-facing copy');
+
+  // Next win at fresh-cycle math resets properly: a hit on the still-active
+  // Final-1 member (36, unchanged since setup — the 3 misses above were all
+  // non-36 spins), now priced by the NEW $10 engine starting from a clean
+  // spent=0/level=0/cycleNet=0, must reset cleanly (rule 7).
+  const r = driveSpin(rt, 36);
+  assert.equal(r.isCovered, true);
+  assert.equal(r.perNumber, 10, 'fresh-cycle math prices at the NEW $10 denomination');
+  assert.equal(freshTrinity.spent, 0, 'fresh-cycle win resets cleanly');
+  assert.equal(freshTrinity.level, 0);
+  assert.equal(rt._trinityCycleNet, 0, 'cycle net resets cleanly on the fresh-cycle win');
+  console.log('Test 12 (mid-cycle settings change resets cycle net, session counter untouched, fresh-cycle win resets cleanly, Critical 2): PASS');
 }
 
 console.log('live-betting: ALL PASS');

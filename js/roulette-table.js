@@ -434,6 +434,18 @@
             this._showToast(!this.trinityEngine ? 'Set table limits and denomination first' : 'Set bankroll first', 2000);
             return;
           }
+          // Important 4: refuse to enable betting if the denomination has
+          // drifted outside the table's real limits (e.g. changed via the
+          // Settings panel's plain "base bet" field, which does not bounds
+          // check, without a resync having run since). trinityEngine.minUnit
+          // is the denomination itself, not the table minimum, so the real
+          // floor lives on trinityEngine.tableMinUnit (see js/trinity.js).
+          if (bettingInput.checked && this.trinityEngine &&
+              (this.bankroll.baseBet < this.trinityEngine.tableMinUnit || this.bankroll.baseBet > this.trinityEngine.maxUnit)) {
+            bettingInput.checked = false;
+            this._showToast('Denomination is outside your table limits. Fix it in the Bankroll panel before betting.', 2500);
+            return;
+          }
           this.bettingEnabled = bettingInput.checked;
           const label = document.getElementById('betting-toggle-label');
           if (label) label.textContent = this.bettingEnabled ? 'BET ON' : 'BET OFF';
@@ -522,6 +534,31 @@
 
       // Save state
       this._saveState();
+    }
+
+    // Critical 2 fix — called by app.js's syncTrinityEngineFromProfile
+    // whenever it rebuilds trinityEngine because the denomination or table
+    // maximum genuinely changed mid-session (not just the Bankroll panel
+    // being opened to check stats — see that function's header comment). A
+    // fresh TrinityEngine starts at spent=0/level=0, but _trinityCycleNet
+    // (the SEPARATE real-money ledger rule 7's conditional-reset decision
+    // gates on, which trinityEngine.toJSON()/fromJSON() never touches) was
+    // not being reset alongside it — left stale, it could keep gating a
+    // win against the OLD cycle's deficit, so a win might never satisfy
+    // `_trinityCycleNet >= 0` again. _betSpinCount is a SESSION counter
+    // (see its field comment above), not cycle-scoped, so it is
+    // deliberately left untouched here. Pushes one plain-word IntelFeed
+    // card unless `announce` is false (the very first time a session's
+    // profile/denomination is configured, there is no cycle to "restart"
+    // yet, so no card). Pure side effects only (no DOM), directly testable.
+    _onTrinitySettingsChanged(announce) {
+      this._trinityCycleNet = 0;
+      if (announce && BTHG.IntelFeed) {
+        BTHG.IntelFeed.push({
+          kind: 'trinity',
+          message: 'Table settings changed. The Trinity betting cycle has been restarted from the base denomination.',
+        });
+      }
     }
 
     // Pure decision for whether this spin's money should be tracked.
@@ -713,8 +750,37 @@
       }
     }
 
+    // Critical 1 fix: _moneyHistory must stay index-aligned with
+    // engine.history at all times (see the field comment at the top of
+    // this class) — every path that mutates engine.history is required to
+    // push a matching money snapshot first (_onNumberTap does this itself;
+    // the two direct engine.recordSpin() callers in app.js — loadPreviousTable's
+    // reload replay and the Pocket Timing overlay — now push one too). If
+    // the lengths have still somehow drifted apart, do NOT silently no-op
+    // (that was D3's original bug, resurfacing via a second route): warn
+    // loudly with both lengths so a drift is never invisible again. Pure/
+    // side-effect-free besides the warn (same testable-in-isolation pattern
+    // as _shouldTrackBet) so a test can drive it without a DOM.
+    _checkMoneyHistoryAlignment() {
+      // Defensive: some call sites (headless tests, or any future one)
+      // construct RouletteTableUI with a minimal engine stand-in that has
+      // no `.history` at all — never let the alignment check itself throw.
+      const engineLen = (this.engine.history || []).length;
+      if (this._moneyHistory.length !== engineLen) {
+        console.warn(
+          'Money history desync before undo: _moneyHistory.length=' + this._moneyHistory.length +
+          ', engine.history.length=' + engineLen
+        );
+        return false;
+      }
+      return true;
+    }
+
     _onUndo() {
       if (this.engine.frozen) return;
+
+      this._checkMoneyHistoryAlignment();
+
       if (this.engine.undoLastSpin()) {
         // Task 23 (rule 10 / D3): restore Trinity cycle state, bankroll,
         // wins bucket, cycle-net, and bet count to their exact pre-spin

@@ -5,8 +5,18 @@
   function roundUpTo(value, inc) { return Math.ceil((value - 1e-9) / inc) * inc; }
 
   class TrinityEngine {
-    constructor({ minUnit, maxUnit, coverage = 10, payout = 35, floorUnits = 1 }) {
+    constructor({ minUnit, maxUnit, coverage = 10, payout = 35, floorUnits = 1, tableMinUnit }) {
       this.minUnit = minUnit; this.maxUnit = maxUnit;
+      // Important 4 (additive, informational only — no math here reads
+      // this): minUnit is actually the DENOMINATION (the escalation floor/
+      // quantum), not the table's real minimum betting unit — those became
+      // two different things once a denomination could be set independently
+      // (Task 23). Stash the real table minimum too, defaulting to minUnit
+      // when a caller does not pass one (older/test call sites), so
+      // anything holding a TrinityEngine reference (e.g. the BET ON toggle
+      // guard) can validate the denomination against the true table bounds
+      // without a separate handle back to the active profile.
+      this.tableMinUnit = tableMinUnit != null ? tableMinUnit : minUnit;
       this.coverage = coverage; this.payout = payout;
       this.floor = floorUnits * minUnit;
       this.spent = 0; this.level = 0;

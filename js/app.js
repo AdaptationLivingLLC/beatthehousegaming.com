@@ -52,9 +52,28 @@
   function syncTrinityEngineFromProfile() {
     const profile = BTHG.MachineProfiles.getActive();
     if (profile && profile.minUnit != null && profile.maxUnit != null && bankroll && bankroll.baseBet > 0) {
+      // Important 4 fix: clamp the denomination into the table's real
+      // limits here too, not only in the Bankroll panel's Apply handler —
+      // this function also runs on every panel OPEN (see the comment
+      // above), so a denomination left stale from before the table limits
+      // existed/changed (e.g. set via the older Settings panel, which
+      // writes bankroll.baseBet directly with no bounds check at all) gets
+      // corrected the next time anything resyncs, not only at Apply.
+      if (bankroll.baseBet < profile.minUnit) bankroll.baseBet = profile.minUnit;
+      if (bankroll.baseBet > profile.maxUnit) bankroll.baseBet = profile.maxUnit;
       const denom = bankroll.baseBet;
+
+      const hadEngine = !!trinityEngine;
       if (!trinityEngine || trinityEngine.minUnit !== denom || trinityEngine.maxUnit !== profile.maxUnit) {
-        trinityEngine = new BTHG.TrinityEngine({ minUnit: denom, maxUnit: profile.maxUnit });
+        trinityEngine = new BTHG.TrinityEngine({ minUnit: denom, maxUnit: profile.maxUnit, tableMinUnit: profile.minUnit });
+        // Critical 2 fix: this rebuild branch fires whenever the
+        // denomination or table maximum actually changed (a genuine
+        // mid-cycle settings change, not just the panel being opened to
+        // check stats — see this function's header comment). Resetting
+        // _trinityCycleNet (and announcing it, unless this is the very
+        // first engine of the session) alongside the fresh TrinityEngine is
+        // RouletteTableUI's own concern — see _onTrinitySettingsChanged.
+        if (typeof tableUI !== 'undefined' && tableUI) tableUI._onTrinitySettingsChanged(hadEngine);
       }
       if (typeof tableUI !== 'undefined' && tableUI) tableUI.trinityEngine = trinityEngine;
       return profile;
@@ -256,6 +275,22 @@
     }
 
     launchTable();
+
+    // Critical 1 fix: engine.history may already hold spins at this point
+    // (either replayed directly via engine.recordSpin() in the loop above,
+    // or restored via engine.fromJSON(frozenSnapshot.engineState)) — both
+    // paths bypass _onNumberTap/_pushMoneySnapshot entirely, and tableUI
+    // did not even exist yet while they ran, so it cannot have been called
+    // then. _moneyHistory must stay index-aligned with engine.history (see
+    // roulette-table.js's field comment) or undo desyncs money state.
+    // None of these spins moved any money (bankroll/trinityEngine are
+    // freshly built above from Settings, untouched since), so backfilling
+    // with the CURRENT (unchanged) money snapshot once per untracked spin
+    // is exactly equivalent to having pushed one before each — undoing any
+    // of them correctly restores that same, still-current state.
+    while (tableUI._moneyHistory.length < engine.history.length) {
+      tableUI._pushMoneySnapshot();
+    }
 
     // Re-show the freeze banner on top of the restored board.
     if (frozenSnapshot) {
@@ -787,6 +822,16 @@
         const landing = session.recordLanding(num, pendingTimestamp);
         if (!landing) return;
 
+        // Critical 1 fix: this is a direct engine.recordSpin() call that
+        // bypasses _onNumberTap entirely, so it must push a money snapshot
+        // first too, or undo desyncs (_moneyHistory falls one entry short
+        // of engine.history, and _restoreMoneySnapshot(undefined) silently
+        // no-ops while the board rolls back). These spins move no money
+        // (Pocket Timing never touches bettingEnabled/_applyLiveBetting),
+        // so the snapshot just captures the CURRENT (unchanged) money
+        // state — undoing this spin correctly restores that same state.
+        if (tableUI) tableUI._pushMoneySnapshot();
+
         // ALSO record to the series engine — this is the key fix
         engine.recordSpin(num);
 
@@ -981,7 +1026,7 @@
             <input type="number" id="set-bankroll" value="${bankroll.totalBankroll}" min="0">
           </div>
           <div class="settings-field">
-            <label>Payout Ratio</label>
+            <label>Payout Ratio (display only, live play pays 35 to 1 plus stake)</label>
             <select id="set-payout">
               <option value="35" ${settings.payoutRatio === 35 ? 'selected' : ''}>35:1</option>
               <option value="34" ${settings.payoutRatio === 34 ? 'selected' : ''}>34:1</option>
@@ -1307,13 +1352,22 @@
             .map(spinAt => spinAt - engine.entrySpin);
           const cyc = BTHG.Bankroll.replaySeriesCycle({
             spinHistory: engine.history, entrySpin: engine.entrySpin, finalEight: engine.finalEight,
-            closerOffsets: liveCloserOffsets, minUnit,
+            closerOffsets: liveCloserOffsets, minUnit, denomination: bankroll.baseBet,
           });
           if (cyc) {
             live.currentLevel = cyc.currentLevel;
             live.currentSpent = cyc.currentSpent;
             live.worstDepth = reco.worstDepth;
             live.worstSpend = reco.worstSpend;
+            // Important 3: the live "right now" numbers above are priced at
+            // the denomination actually being bet (when set), which can
+            // differ from worstDepth/worstSpend above (the archived-history
+            // recommendation, deliberately anchored to the table minimum as
+            // a stable worst-case baseline regardless of the current
+            // denomination) — say so explicitly rather than let the two
+            // silently disagree.
+            live.pricedAt = cyc.pricedAt;
+            live.pricedWithDenomination = cyc.pricedWithDenomination;
           } else {
             live.active = false; // Final 8 active but no closing-phase spins yet
           }
