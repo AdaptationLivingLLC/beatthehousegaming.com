@@ -95,6 +95,7 @@
   // `document`) — same guard style as js/ui-shell.js.
   function render() {
     if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+    bindCollapse();
     renderFeed();
     renderStatusChip();
   }
@@ -128,7 +129,30 @@
     return `<div class="if-signal-banner if-signal-${sig.state.toLowerCase()}">` +
       `<span class="if-signal-state">${escapeHtml(label)}</span>` +
       `<span class="if-signal-reason">${escapeHtml(sig.reason)}</span>` +
+      // Minimize control ON the banner itself (Brandon, from the floor:
+      // the feed block was eating half his iPad screen and the status
+      // strip button alone was not discoverable). Click is delegated in
+      // render() so it survives every innerHTML re-render; #ss-signal
+      // keeps mirroring the call while hidden; #btn-feed restores.
+      `<button class="if-collapse" type="button" title="Hide insights">HIDE</button>` +
       `</div>`;
+  }
+
+  // One-time delegated handler for the banner's HIDE button, bound on
+  // the container so innerHTML re-renders never orphan it.
+  let collapseBound = false;
+  function bindCollapse() {
+    if (collapseBound || typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+    const el = document.getElementById('intel-feed');
+    if (!el || typeof el.addEventListener !== 'function') return;
+    el.addEventListener('click', e => {
+      const t = e.target;
+      if (t && t.classList && t.classList.contains('if-collapse')) {
+        if (BTHG.UI && BTHG.UI.toggleFeed) BTHG.UI.toggleFeed();
+        else document.body.classList.add('feed-hidden');
+      }
+    });
+    collapseBound = true;
   }
 
   function cardHtml(entry) {
