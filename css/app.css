@@ -2868,8 +2868,30 @@ body.layout-phone-land #status-strip { position: fixed; top: 0; height: 28px; wi
   display: flex; gap: 12px; align-items: center; font-size: 0.72rem; background: var(--surface); }
 body.layout-phone-port #rotate-prompt { display: flex; }
 body.layout-phone-port #table-container { display: none; }
-body.layout-tablet #app-root { display: grid; grid-template-rows: 33vh 1fr; height: 100vh; }
+/* The 33vh/1fr tablet split is a LANDSCAPE design (iPad on its side:
+   table across the top, feed below). In portrait it jailed the table
+   in the top third of a tall screen and the sticky signal banner read
+   as a giant blocker cutting the page in half (Brandon's iPad,
+   2026-07-04 screenshots) — so portrait tablets get one full-width
+   column instead: table first at natural size, feed in normal flow
+   below it. */
+@media (orientation: landscape) {
+  body.layout-tablet #app-root { display: grid; grid-template-rows: 33vh 1fr; height: 100vh; }
+}
 body.layout-tablet #intel-feed { overflow-y: auto; background: var(--bg); }
+@media (orientation: portrait) {
+  body.layout-tablet #app-root { display: block; height: auto; }
+  body.layout-tablet #table-container { min-height: 0; overflow: visible; }
+  body.layout-tablet .rt-table-wrapper { max-width: none; }
+  body.layout-tablet .rt-table-column { max-width: none; width: 100%; }
+  body.layout-tablet #intel-feed { overflow-y: visible; }
+  /* Brandon's iPad has the bottom ~1.5 inches of screen dead (broken
+     panel) — reserve that strip so nothing interactive ever sits in
+     it. Scroll content gains tail room; fixed toasts get lifted by
+     the toast rule below. */
+  body.layout-tablet #app-root { padding-bottom: 190px; }
+  body.layout-tablet .rt-toast { bottom: 210px; }
+}
 body.layout-desktop #app-root { display: grid; grid-template-columns: 1fr 420px; height: 100vh; }
 
 /* ---- Phone-landscape compaction pass (review round 1, Finding 1: Critical) ----
@@ -2970,3 +2992,21 @@ body.feed-hidden.layout-tablet #app-root {
 body.feed-hidden.layout-desktop #app-root {
   grid-template-columns: 1fr;
 }
+
+/* ---- Banner HIDE control (Brandon, 2026-07-04: a minimize button on
+   the blocker itself, not only in the status strip) ---- */
+.if-collapse {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  min-height: 32px;
+}
+.if-collapse:active { color: var(--accent); border-color: var(--accent); }
