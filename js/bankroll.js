@@ -24,6 +24,13 @@
       this.totalWagered = 0;
       this.peakBankroll = this.totalBankroll;
       this.trinity = new TrinityCycle();
+      // Task 23 (rule 3): the wins bucket. Every covered hit's full payout
+      // lands here first; only the amount needed to top totalBankroll back
+      // up to sessionStartBankroll ever transfers out of it (see
+      // BTHG.Bankroll.applyWinsBucketPayout below). Whatever is left stays
+      // here permanently — it never funds a bet and is never folded back
+      // into totalBankroll beyond the top-up.
+      this.winsBucket = 0;
       this._listeners = [];
     }
 
@@ -118,6 +125,9 @@
         totalWagered: this.totalWagered,
         peakBankroll: this.peakBankroll,
         trinity: this.trinity.toJSON(),
+        // Task 23 — additive field, no schema/version change (localStorage
+        // session blob, not IndexedDB).
+        winsBucket: this.winsBucket,
       };
     }
 
@@ -132,6 +142,9 @@
       this.totalWagered = data.totalWagered || 0;
       this.peakBankroll = data.peakBankroll || data.totalBankroll;
       if (data.trinity) this.trinity.fromJSON(data.trinity);
+      // Additive — legacy sessions saved before Task 23 have no winsBucket
+      // field at all; default to 0 rather than crashing/going undefined.
+      this.winsBucket = data.winsBucket || 0;
     }
   }
 
@@ -461,12 +474,40 @@
     return { guaranteedMinimum, path, live: liveText };
   }
 
+  /**
+   * Task 23 (rule 3) — the wins-bucket money model for LIVE betting. Every
+   * covered hit's full payout lands in the wins bucket FIRST. From the
+   * bucket, transfer back into the bankroll ONLY the amount needed to top
+   * it back up to startingBankroll — never more, so the bankroll never
+   * shows above its starting amount. Whatever remains in the bucket stays
+   * there permanently: the wins bucket never funds a bet and profit is
+   * never folded back into the bankroll beyond the top-up.
+   *
+   * Pure — no class, no side effects — so it can be driven directly by
+   * tests and reused identically from the live tap handler. `bankroll` here
+   * is the CURRENT bankroll amount (already net of this spin's stake
+   * deduction, which happens before the payout in the caller), not
+   * sessionStartBankroll.
+   */
+  function applyWinsBucketPayout({ bankroll, winsBucket, startingBankroll, payout }) {
+    let newBucket = (winsBucket || 0) + (payout || 0);
+    let newBankroll = bankroll;
+    const need = startingBankroll - newBankroll;
+    if (need > 0) {
+      const transfer = Math.min(need, newBucket);
+      newBankroll += transfer;
+      newBucket -= transfer;
+    }
+    return { bankroll: newBankroll, winsBucket: newBucket };
+  }
+
   BTHG.Bankroll = {
     recommendStart,
     projectionLines,
     replaySeriesCycle,
     worstFromArchive,
     resolveProfileForLimits,
+    applyWinsBucketPayout,
   };
 
   // ---- Chip Rendering Helper ----------------------------------

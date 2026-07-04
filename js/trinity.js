@@ -30,6 +30,34 @@
       return { net, spent: spentTotal };
     }
     reset() { this.spent = 0; this.level = 0; }
+
+    // Task 23: the live betting path's escalation coverage (Final-N members
+    // only — 0/00 are excluded from the deficit that drives escalation per
+    // the brief's rule 6) can change spin to spin as Final-N membership
+    // ages out / auto-refills. Re-point coverage/netPerUnit at the new
+    // count WITHOUT touching the accumulated cycle deficit (spent/level) —
+    // those are real dollars already committed and must survive a coverage
+    // change untouched.
+    setCoverage(coverage) {
+      this.coverage = coverage;
+      this.netPerUnit = (this.payout + 1) - coverage;
+    }
+
+    // Task 23: serialize/restore the MUTABLE cycle state only (spent, level,
+    // coverage). minUnit/maxUnit/payout/floor are fixed at construction and
+    // are not part of this round trip — callers restore into an engine
+    // already constructed with the same config. This is what per-spin undo
+    // snapshots (rule 10) rely on to put Trinity back exactly as it was
+    // pre-spin, instead of recomputing and hoping.
+    toJSON() {
+      return { spent: this.spent, level: this.level, coverage: this.coverage };
+    }
+    fromJSON(data) {
+      if (!data) return;
+      this.spent = data.spent || 0;
+      this.level = data.level || 0;
+      if (data.coverage != null) this.setCoverage(data.coverage);
+    }
   }
   BTHG.TrinityEngine = TrinityEngine;
   return { TrinityEngine };

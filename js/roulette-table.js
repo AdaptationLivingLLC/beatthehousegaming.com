@@ -21,7 +21,7 @@
   const SECTION_HOT_THRESHOLD = 16;   // cop lights (police flash)
 
   class RouletteTableUI {
-    constructor(container, engine, bankroll, fusion, predictor) {
+    constructor(container, engine, bankroll, fusion, predictor, trinityEngine) {
       this.container = container;
       this.engine = engine;
       this.bankroll = bankroll;
@@ -29,6 +29,25 @@
       this.predictor = predictor;
       this._listeners = [];
       this.bettingEnabled = false;
+
+      // Task 23 — real computed TrinityEngine (js/trinity.js) driving live
+      // betting, replacing the deprecated series-engine ladder multiplier.
+      // May be null until the bankroll panel's table limits + denomination
+      // are configured (see app.js syncTrinityEngineFromProfile).
+      this.trinityEngine = trinityEngine || null;
+      // Real money cycle net since the last Trinity reset (rule 7's
+      // conditional-reset decision input) — includes EVERY dollar wagered
+      // and paid this cycle, unlike trinityEngine.spent which deliberately
+      // excludes 0/00 stakes from the escalation-sizing deficit (rule 6).
+      this._trinityCycleNet = 0;
+      // Count of spins actually bet on this session (rule 10's "per-spin
+      // bet count").
+      this._betSpinCount = 0;
+      // Per-spin money-state snapshot stack (rule 10) — index-aligned with
+      // engine.history: one entry pushed per successful _onNumberTap call,
+      // popped on _onUndo. This is what makes undo restore Trinity/bankroll/
+      // wins-bucket state EXACTLY, instead of recomputing and hoping (D3).
+      this._moneyHistory = [];
     }
 
     render() {
@@ -54,6 +73,10 @@
           <div class="rt-br-item">
             <span class="rt-br-label">BANKROLL</span>
             <span class="rt-br-value" id="br-total">$0</span>
+          </div>
+          <div class="rt-br-item">
+            <span class="rt-br-label">WINS</span>
+            <span class="rt-br-value rt-positive" id="br-wins">$0</span>
           </div>
           <div class="rt-br-item">
             <span class="rt-br-label">SESSION P&L</span>
@@ -274,6 +297,17 @@
       return label === 'RED' || label === 'BLACK';
     }
 
+    // Task 23 (D1/rule 12): whether a given number's felt cell should show
+    // the Final-N highlight. 0 and 00 are ALWAYS live coverage once the
+    // final phase is active (this.engine.getTrinityNumbers()), not just
+    // literal finalEight membership — before this fix, 0/00 only showed as
+    // covered in the upper Final 8 chip display, never on the felt itself.
+    // Pure (no DOM) so it is headlessly testable, same pattern as
+    // _isDiamondLabel/_shouldTrackBet.
+    _isFinalHighlighted(numValue) {
+      return this.engine.finalActivated && this.engine.getTrinityNumbers().includes(numValue);
+    }
+
     _bandDisplayLabel(label) {
       return BTHG.TABLE_GRID.bandDisplay[label] || label;
     }
@@ -392,10 +426,12 @@
       if (bettingInput) {
         bettingInput.checked = this.bettingEnabled;
         bettingInput.addEventListener('change', () => {
-          // Only allow ON if bankroll is configured
-          if (bettingInput.checked && (this.bankroll.baseBet <= 0 || this.bankroll.totalBankroll <= 0)) {
+          // Only allow ON if bankroll + denomination + table limits are all
+          // configured (Task 23: no trinityEngine means no bet can be sized
+          // at all, so BET ON would otherwise silently do nothing).
+          if (bettingInput.checked && (this.bankroll.baseBet <= 0 || this.bankroll.totalBankroll <= 0 || !this.trinityEngine)) {
             bettingInput.checked = false;
-            this._showToast('Set bankroll first', 2000);
+            this._showToast(!this.trinityEngine ? 'Set table limits and denomination first' : 'Set bankroll first', 2000);
             return;
           }
           this.bettingEnabled = bettingInput.checked;
@@ -431,16 +467,21 @@
       // write.
       if (this.engine.frozen) return;
 
+      // Task 23 (rule 10 / D3): snapshot every piece of money state BEFORE
+      // any mutation this spin, so undo can restore it EXACTLY rather than
+      // recompute-and-hope. Must be the very first thing that happens.
+      this._pushMoneySnapshot();
+
       // Capture betting state BEFORE recordSpin modifies it
       // (recordSpin resets trinityMissStreak on hit, and can clear finalEightJustHit on series complete)
       const wasFinalActive = this.engine.finalActivated;
-      // A spin is a WIN if the number is anywhere in our actual coverage —
-      // the Final 8 PLUS the always-covered 0 and 00. Using finalEight alone
-      // wrongly booked every 0/00 hit as a loss even though we cover them,
-      // which dragged the session P&L negative.
-      const wasInFinal = this.engine.getTrinityNumbers().includes(num);
-      const numbersPlayed = this.engine.getTrinityNumbers().length;
-      const multiplier = this.engine.getTrinityMultiplier();
+      // Coverage AS OF BEFORE this spin — the live Final-N members
+      // (including numbers still inside the 2-spin age window after their
+      // first hit) PLUS 0 and 00 always (rule 2). Captured pre-spin so a
+      // number that is covered right now still counts as covered even if
+      // this exact spin ages it out of finalEight.
+      const coveredNumbers = this.engine.getTrinityNumbers();
+      const escalationNumbers = this.engine.getEscalationNumbers();
 
       // Record spin (modifies engine state)
       this.engine.recordSpin(num);
@@ -448,15 +489,14 @@
       // Pattern engine + intel feed: re-analyze on every spin (Task 8).
       this._updateIntelFeed();
 
-      // Record bankroll P&L stats using pre-spin state. This must run
-      // regardless of bettingEnabled — bettingEnabled only gates the manual
-      // "BET ON" UI toggle, not whether a Trinity bet situation existed.
-      // Previously this whole block was gated on this.bettingEnabled, so
-      // winCount/lossCount/totalWagered silently stayed at 0 for the entire
-      // session unless the user had manually flipped betting on.
-      if (this._shouldTrackBet(wasFinalActive, numbersPlayed)) {
-        this.bankroll.recordSpin(wasInFinal, numbersPlayed, multiplier);
-      }
+      // Task 23: real computed TrinityEngine wired into live play (rules
+      // 1-9) — denomination x Trinity multiplier bet on every covered
+      // number, wins-bucket payout/top-up, 0/00 exclusion from the
+      // escalation deficit, conditional reset on wins, unconditional reset
+      // on 0/00 hits, cap alerts. No-ops entirely (nothing deducted or
+      // counted) unless BET is ON, Final 8 is active, and the denomination/
+      // table limits are configured (rule 11).
+      this._applyLiveBetting(num, wasFinalActive, coveredNumbers, escalationNumbers);
 
       // Learn scatter offset if calibrated
       if (this.fusion.qualityTier >= 2 && this.predictor.lastResult) {
@@ -484,13 +524,147 @@
       this._saveState();
     }
 
-    // Pure decision for whether this spin's P&L should be tracked into the
-    // bankroll — deliberately does NOT consult this.bettingEnabled, which is
-    // UI-only state for the manual "BET ON" toggle. A Trinity bet is "in
-    // play" (and must be tracked) whenever Final 8 was active and there were
-    // covered numbers, independent of that toggle.
-    _shouldTrackBet(wasFinalActive, numbersPlayed) {
-      return wasFinalActive && numbersPlayed > 0;
+    // Pure decision for whether this spin's money should be tracked.
+    //
+    // Task 23 (rule 11) SUPERSEDES Task 4's original decision here. Task 4
+    // deliberately ignored bettingEnabled because winCount/lossCount/
+    // totalWagered were silently staying at 0 whenever the manual toggle was
+    // off. Brandon's live-floor rule is explicit: "while OFF nothing is
+    // deducted or counted (no phantom bets)". So bettingEnabled is now a
+    // required third argument — a Trinity bet is only "in play" when Final 8
+    // is active, there are covered numbers, AND the BET toggle is ON.
+    _shouldTrackBet(wasFinalActive, numbersPlayed, bettingEnabled) {
+      return wasFinalActive && numbersPlayed > 0 && !!bettingEnabled;
+    }
+
+    // ---- Task 23: Live Trinity betting money flow ----------------------
+    // Deliberately does not touch `this.container`/DOM (same pattern as
+    // _shouldTrackBet/_buildArchiveRecord) so it is testable headlessly via
+    // a vm harness. Must be called with PRE-SPIN coverage (see
+    // _onNumberTap) — a number covered when the bet was placed pays even if
+    // this exact spin ages it out of finalEight afterward (rule 8).
+    //
+    // Returns null when nothing was bet (BET OFF, Final 8 not active, or no
+    // trinityEngine configured yet) — rule 11's "nothing deducted or
+    // counted" boundary. Otherwise returns { perNumber, stake, isCovered,
+    // isZeroHit } for callers/tests that want the numbers actually used.
+    _applyLiveBetting(num, wasFinalActive, coveredNumbers, escalationNumbers) {
+      if (!this._shouldTrackBet(wasFinalActive, coveredNumbers.length, this.bettingEnabled)) return null;
+      if (!this.trinityEngine) return null;
+
+      const trinity = this.trinityEngine;
+      // Rule 6: the escalation coverage that sizes the next bet excludes
+      // 0/00 — only the live Final-N members count toward it.
+      trinity.setCoverage(escalationNumbers.length);
+      const bet = trinity.nextBet();
+      const perNumber = bet.perNumber;
+      const coveredCount = coveredNumbers.length;
+      const stake = perNumber * coveredCount;
+
+      // Rule 9: cap alert. trinity.js's own cap-aware math (screens/
+      // perScreen) governs how the bet is actually laid out once perNumber
+      // exceeds the table maximum — this only adds the plain-word alert on
+      // top; the escalation itself is untouched (IntelFeed dedups repeats
+      // of the same message within the series).
+      if (bet.screens > 1 && BTHG.IntelFeed) {
+        BTHG.IntelFeed.push({
+          kind: 'trinity',
+          message: `Trinity needs ${BTHG.formatMoney(perNumber)} per number, above your ${BTHG.formatMoney(trinity.maxUnit)} table maximum. Betting ${BTHG.formatMoney(bet.perScreen)} per number across ${bet.screens} screens to keep the escalation on track.`,
+        });
+      }
+
+      // Rule 2: total bet this spin = unit x coveredCount (Final-N members
+      // + the always-covered 0/00), deducted from the bankroll.
+      this.bankroll.totalBankroll -= stake;
+      this.bankroll.totalWagered += stake;
+      this._trinityCycleNet -= stake;
+      this._betSpinCount++;
+
+      const isCovered = coveredNumbers.includes(num);
+      const isZeroHit = num === 0 || num === 37;
+
+      if (isCovered) {
+        // Rule 3: every covered hit pays 36 x unit (35:1 plus stake back).
+        // The full payout lands in the wins bucket first; only the amount
+        // needed to top the bankroll back up to its starting amount
+        // transfers back out.
+        const payout = 36 * perNumber;
+        this._trinityCycleNet += payout;
+        const applied = BTHG.Bankroll.applyWinsBucketPayout({
+          bankroll: this.bankroll.totalBankroll,
+          winsBucket: this.bankroll.winsBucket,
+          startingBankroll: this.bankroll.sessionStartBankroll,
+          payout,
+        });
+        this.bankroll.totalBankroll = applied.bankroll;
+        this.bankroll.winsBucket = applied.winsBucket;
+        this.bankroll.winCount++;
+
+        if (isZeroHit) {
+          // Rule 6: a hit on 0 or 00 ALWAYS resets the Trinity cycle to the
+          // base denomination, regardless of the real cycle net.
+          trinity.reset();
+          this._trinityCycleNet = 0;
+        } else if (this._trinityCycleNet >= 0) {
+          // Rule 7: a covered win resets Trinity ONLY if it brings the real
+          // cycle net (every dollar wagered/paid since the last reset,
+          // including 0/00 stakes) to zero or positive.
+          trinity.reset();
+          this._trinityCycleNet = 0;
+        } else {
+          // Rule 7: still negative after the payout — the deficit carries
+          // forward and Trinity keeps escalating exactly as a miss would
+          // (rule 5).
+          trinity.recordMiss();
+        }
+      } else {
+        this.bankroll.lossCount++;
+        trinity.recordMiss();
+      }
+
+      return { perNumber, stake, isCovered, isZeroHit };
+    }
+
+    // Task 23 (rule 10) — snapshot everything undo must restore EXACTLY:
+    // Trinity cycle state (unit/deficit/level via trinityEngine.toJSON()),
+    // bankroll + wins bucket (via bankroll.toJSON()), the real cycle-net
+    // ledger driving the conditional-reset decision, and the per-spin bet
+    // count. Pushed once per successful tap (frozen taps never reach this —
+    // see _onNumberTap's early return), popped once per successful undo, so
+    // it stays index-aligned with engine.history.
+    _pushMoneySnapshot() {
+      this._moneyHistory.push({
+        bankroll: this.bankroll.toJSON(),
+        trinity: this.trinityEngine ? this.trinityEngine.toJSON() : null,
+        cycleNet: this._trinityCycleNet,
+        betSpinCount: this._betSpinCount,
+      });
+    }
+
+    _restoreMoneySnapshot(snap) {
+      if (!snap) return;
+      this.bankroll.fromJSON(snap.bankroll);
+      if (this.trinityEngine && snap.trinity) this.trinityEngine.fromJSON(snap.trinity);
+      this._trinityCycleNet = snap.cycleNet;
+      this._betSpinCount = snap.betSpinCount;
+    }
+
+    // Task 23: the REAL Trinity per-number bet (denomination x current
+    // escalation), replacing every display that used to read
+    // engine.getTrinityMultiplier()/bankroll.getCurrentBetPerNumber() (the
+    // deprecated ladder). Purely a projection — nextBet() never mutates
+    // trinityEngine state — so it is safe to call from render/update paths
+    // as often as needed.
+    _currentBetPerNumber() {
+      if (!this.trinityEngine) return this.bankroll.baseBet || 0;
+      this.trinityEngine.setCoverage(this.engine.getEscalationNumbers().length);
+      return this.trinityEngine.nextBet().perNumber;
+    }
+
+    _currentTrinityMultiplier() {
+      const perNumber = this._currentBetPerNumber();
+      const denom = (this.bankroll.baseBet || (this.trinityEngine && this.trinityEngine.minUnit)) || 1;
+      return Math.round((perNumber / denom) * 100) / 100;
     }
 
     // Re-runs PatternEngine.analyze against this machine's archived series
@@ -542,6 +716,12 @@
     _onUndo() {
       if (this.engine.frozen) return;
       if (this.engine.undoLastSpin()) {
+        // Task 23 (rule 10 / D3): restore Trinity cycle state, bankroll,
+        // wins bucket, cycle-net, and bet count to their exact pre-spin
+        // snapshot. Previously undo only rolled back the series engine —
+        // money state was left corrupted (D3).
+        this._restoreMoneySnapshot(this._moneyHistory.pop());
+
         BTHG.Storage.SpinDB.deleteLastSpin(BTHG._currentMachineId || 'default');
         this.update();
         this._saveState();
@@ -854,9 +1034,8 @@
         // Just-hit glow
         cell.classList.toggle('rt-hot', num.ago === 0 && num.hits > 0);
 
-        // Final 8 highlight
-        const inFinal = this.engine.finalEight.includes(num.value);
-        cell.classList.toggle('rt-in-final', inFinal);
+        // Final 8 highlight (D1/rule 12) — see _isFinalHighlighted below.
+        cell.classList.toggle('rt-in-final', this._isFinalHighlighted(num.value));
 
         // Most recent Final 8 hit highlight
         const isF8JustHit = this.engine.finalEightJustHit.has(num.value);
@@ -1078,7 +1257,7 @@
         <span class="rt-pred-nums">${nums}</span>
         <span class="rt-pred-prob">${result.probability.toFixed(1)}%</span>
         <span class="rt-pred-quality" data-tier="${result.qualityTier}">${result.qualityMessage}</span>
-        <span class="rt-pred-mult">${this.engine.getTrinityMultiplier()}x</span>
+        <span class="rt-pred-mult">${this._currentTrinityMultiplier()}x</span>
       `;
     }
 
@@ -1093,6 +1272,7 @@
 
     _updateBankrollBar() {
       const totalEl = document.getElementById('br-total');
+      const winsEl = document.getElementById('br-wins');
       const sessionEl = document.getElementById('br-session');
       const betEl = document.getElementById('br-bet');
       const multEl = document.getElementById('br-mult');
@@ -1100,6 +1280,12 @@
       if (totalEl) {
         totalEl.textContent = BTHG.formatMoney(this.bankroll.totalBankroll);
         totalEl.classList.remove('rt-positive', 'rt-negative');
+      }
+
+      // Task 23 (rule 3): the wins bucket — bankroll never displays above
+      // its starting amount; this is where profit actually accumulates.
+      if (winsEl) {
+        winsEl.textContent = BTHG.formatMoney(this.bankroll.winsBucket || 0);
       }
 
       if (sessionEl) {
@@ -1110,12 +1296,15 @@
         sessionEl.classList.add(pnl >= 0 ? 'rt-positive' : 'rt-negative');
       }
 
+      // Task 23: real computed Trinity bet/multiplier, replacing the
+      // deprecated ladder (bankroll.getCurrentBetPerNumber()/
+      // engine.getTrinityMultiplier()).
       if (betEl) {
-        betEl.textContent = BTHG.formatMoney(this.bankroll.getCurrentBetPerNumber());
+        betEl.textContent = BTHG.formatMoney(this._currentBetPerNumber());
       }
 
       if (multEl) {
-        const m = this.engine.getTrinityMultiplier();
+        const m = this._currentTrinityMultiplier();
         multEl.textContent = m + 'x';
         multEl.style.color = m > 1 ? '#FFD700' : '';
       }
@@ -1127,9 +1316,9 @@
           detailBar.style.display = 'flex';
           const targets = this.engine.getTrinityNumbers();
           const numbersCount = targets.length;
-          const betPerNum = this.bankroll.getCurrentBetPerNumber();
+          const betPerNum = this._currentBetPerNumber();
           const totalBet = betPerNum * numbersCount;
-          const winPayout = this.bankroll.payoutRatio * betPerNum;
+          const winPayout = 36 * betPerNum; // 35:1 plus stake back (rule 3)
 
           const coverEl = document.getElementById('bd-covering');
           const totalBetEl = document.getElementById('bd-total-bet');
@@ -1337,8 +1526,8 @@
       // Final 8 status
       if (e.finalActivated) {
         h += `<div class="rt-intel-row" style="border-top:1px solid rgba(94,255,0,0.2);padding-top:0.4rem;margin-top:0.2rem;"><span class="rt-intel-label" style="color:#5EFF00;">FINAL ${remaining} ACTIVE</span><span class="rt-intel-value" style="color:#5EFF00;">${remaining} left</span></div>`;
-        h += `<div class="rt-intel-row"><span class="rt-intel-label">Trinity Multiplier</span><span class="rt-intel-value" style="color:#d4af37;">${e.getTrinityMultiplier()}x</span></div>`;
-        h += `<div class="rt-intel-row"><span class="rt-intel-label">Miss Streak</span><span class="rt-intel-value">${e.trinityMissStreak}</span></div>`;
+        h += `<div class="rt-intel-row"><span class="rt-intel-label">Trinity Multiplier</span><span class="rt-intel-value" style="color:#d4af37;">${this._currentTrinityMultiplier()}x</span></div>`;
+        h += `<div class="rt-intel-row"><span class="rt-intel-label">Trinity Level</span><span class="rt-intel-value">${this.trinityEngine ? this.trinityEngine.level : 0}</span></div>`;
       }
 
       // NOTE: "Most Overdue (Unhit)" panel removed — it was meaningless.
@@ -1382,6 +1571,13 @@
         machineId: BTHG._currentMachineId || 'default',
         casino: BTHG._currentCasino || 'Unknown',
         bettingEnabled: this.bettingEnabled,
+        // Task 23 — additive. Trinity cycle state is not currently replayed
+        // on a fresh page load (loadPreviousTable rebuilds bankroll/trinity
+        // fresh from Settings/MachineProfiles, a pre-existing gap outside
+        // this task's defect list), but saving it keeps this blob complete
+        // and ready for that to be wired up without another schema change.
+        trinity: this.trinityEngine ? this.trinityEngine.toJSON() : null,
+        trinityCycleNet: this._trinityCycleNet,
       };
       BTHG.Storage.Session.save(state);
     }

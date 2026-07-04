@@ -15,27 +15,52 @@
 (function() {
   const BTHG = window.BTHG;
 
-  // trinityEngine: instantiated/kept in sync here per Task 9's plan
-  // requirement (the Apply handler re-instantiates it with the table's
-  // limits, see syncTrinityEngineFromProfile below). Not read by any
-  // bet-sizing code path yet — that wiring into live play is Task 13's job.
+  // trinityEngine: the REAL computed Trinity engine (js/trinity.js), wired
+  // into live play by Task 23 (this replaces the deprecated series-engine
+  // ladder multiplier everywhere — see js/roulette-table.js). Kept in sync
+  // with the active machine profile's table limits AND the bankroll panel's
+  // denomination (rule 1) via syncTrinityEngineFromProfile below.
   let engine, bankroll, fusion, predictor, tableUI, trinityEngine;
 
-  // Task 9: keep the module-level TrinityEngine in sync with the active
-  // machine profile's table limits, per the Apply handler's plan
-  // requirement. Cheap to rebuild on every call. The live "how deep is this
-  // cycle right now" numbers shown in the Bankroll panel come from
-  // replaying the in-progress SeriesEngine's own history via
-  // BTHG.Bankroll.replaySeriesCycle, not from mutating this instance spin
-  // by spin. Returns the active profile, or null if none exists / it has
-  // no limits set yet.
+  // Keep the module-level TrinityEngine (and tableUI's reference to it) in
+  // sync with the active machine profile's table limits and the current
+  // denomination (bankroll.baseBet — Task 23 rule 1: the chip value bet per
+  // number, reusing the existing "base bet" field, validated to [table min,
+  // table max] by the Apply handler). trinityEngine's `minUnit` is the
+  // DENOMINATION (the escalation quantum/floor, so "denomination x Trinity
+  // multiplier" in rule 2 is exactly perNumber/denomination), not the table
+  // minimum — `maxUnit` is the table's real maximum (the cap rule 9 alerts
+  // against).
+  //
+  // This function is called on every Bankroll panel OPEN (just to read the
+  // active profile for display), not only when Apply is clicked — so it
+  // must be idempotent when nothing has actually changed. A LIVE cycle's
+  // escalation state (spent/level) is real, uncommitted money math now
+  // (Task 23), so silently rebuilding a fresh engine every time the panel
+  // is merely opened to check stats would wipe an in-progress cycle back to
+  // the base denomination with no win having happened. A fresh instance
+  // (and the cycle reset that comes with it) is only created when the
+  // denomination or the table maximum has genuinely changed since the
+  // current instance was built, or none exists yet — that IS a deliberate
+  // reset point (changing your chip denomination or the table max
+  // mid-session starts a fresh cycle). The live "how deep is this cycle
+  // right now" numbers shown in the Bankroll panel come from replaying the
+  // in-progress SeriesEngine's own history via BTHG.Bankroll.
+  // replaySeriesCycle, not from mutating this instance spin by spin — that
+  // replay path is untouched by Task 23. Returns the active profile, or
+  // null if none exists / it has no limits set yet.
   function syncTrinityEngineFromProfile() {
     const profile = BTHG.MachineProfiles.getActive();
-    if (profile && profile.minUnit != null && profile.maxUnit != null) {
-      trinityEngine = new BTHG.TrinityEngine({ minUnit: profile.minUnit, maxUnit: profile.maxUnit });
+    if (profile && profile.minUnit != null && profile.maxUnit != null && bankroll && bankroll.baseBet > 0) {
+      const denom = bankroll.baseBet;
+      if (!trinityEngine || trinityEngine.minUnit !== denom || trinityEngine.maxUnit !== profile.maxUnit) {
+        trinityEngine = new BTHG.TrinityEngine({ minUnit: denom, maxUnit: profile.maxUnit });
+      }
+      if (typeof tableUI !== 'undefined' && tableUI) tableUI.trinityEngine = trinityEngine;
       return profile;
     }
     trinityEngine = null;
+    if (typeof tableUI !== 'undefined' && tableUI) tableUI.trinityEngine = null;
     return profile || null;
   }
 
@@ -156,6 +181,13 @@
     engine.isAutoAddEnabled = settings.autoAdd !== false;
 
     bankroll = new BTHG.BankrollManager(settings.bankroll, settings.baseBet, settings.payoutRatio);
+    // Task 23: force a fresh Trinity cycle for this table/session — a new
+    // table is a genuinely different wheel/context even if its denomination
+    // and table maximum happen to numerically match a previous one, so
+    // syncTrinityEngineFromProfile's idempotent reuse check (below) must
+    // not carry a stale cycle over. launchTable() resyncs a real instance
+    // right after this.
+    trinityEngine = null;
     fusion = new BTHG.CalibratorDataFusion();
     predictor = new BTHG.PredictionEngine();
 
@@ -242,6 +274,13 @@
     engine.isAutoAddEnabled = settings.autoAdd !== false;
 
     bankroll = new BTHG.BankrollManager(settings.bankroll, settings.baseBet, settings.payoutRatio);
+    // Task 23: force a fresh Trinity cycle for this table/session — a new
+    // table is a genuinely different wheel/context even if its denomination
+    // and table maximum happen to numerically match a previous one, so
+    // syncTrinityEngineFromProfile's idempotent reuse check (below) must
+    // not carry a stale cycle over. launchTable() resyncs a real instance
+    // right after this.
+    trinityEngine = null;
     fusion = new BTHG.CalibratorDataFusion();
     predictor = new BTHG.PredictionEngine();
 
@@ -301,7 +340,12 @@
     const root = document.getElementById('app-root');
     root.innerHTML = '';
 
-    tableUI = new BTHG.RouletteTableUI(root, engine, bankroll, fusion, predictor);
+    // Task 23: resync trinityEngine (table limits + current denomination)
+    // before constructing the table so live betting has a real engine from
+    // the first spin if the profile/denomination are already configured.
+    syncTrinityEngineFromProfile();
+
+    tableUI = new BTHG.RouletteTableUI(root, engine, bankroll, fusion, predictor, trinityEngine);
     tableUI.render();
 
     // Handle table actions
@@ -1153,17 +1197,35 @@
     const activeProfile = syncTrinityEngineFromProfile();
     const minUnitVal = activeProfile && activeProfile.minUnit != null ? activeProfile.minUnit : '';
     const maxUnitVal = activeProfile && activeProfile.maxUnit != null ? activeProfile.maxUnit : '';
+
+    // Task 23: bankroll.getState()'s multiplier/betPerNumber/missStreak
+    // reflect the DEPRECATED ladder (bankroll.recordSpin/TrinityCycle,
+    // no longer called from live play) — showing those here next to real
+    // money numbers would be actively misleading. Source the real Trinity
+    // engine instead (same projection tableUI uses via
+    // _currentBetPerNumber/_currentTrinityMultiplier — pure, does not
+    // mutate trinityEngine's spent/level).
+    let realBetPerNumber = bankroll.baseBet;
+    let realMultiplier = 1;
+    let realLevel = 0;
+    if (trinityEngine) {
+      trinityEngine.setCoverage(engine.getEscalationNumbers().length);
+      realBetPerNumber = trinityEngine.nextBet().perNumber;
+      const denom = bankroll.baseBet || trinityEngine.minUnit || 1;
+      realMultiplier = Math.round((realBetPerNumber / denom) * 100) / 100;
+      realLevel = trinityEngine.level;
+    }
     const overlay = document.createElement('div');
     overlay.className = 'rt-overlay rt-overlay-visible';
     overlay.innerHTML = `
       <div class="rt-overlay-content bankroll-panel">
         <h2 style="color:#d4af37;"><i class="fas fa-dollar-sign"></i> Bankroll & Trinity</h2>
-        <p style="color:#888;font-size:0.8rem;margin-bottom:1rem;">Trinity is a controlled doubling progression. Bet stays at 1x for the first 3 misses, then doubles: 2x (3-4 misses), 4x (5-6), 8x (7+). Resets on any hit.</p>
+        <p style="color:#888;font-size:0.8rem;margin-bottom:1rem;">Trinity computes exactly how much to bet on your denomination so a win covers everything lost this cycle plus a bit more. It resets when a win brings the cycle back to even or better. 0 and 00 always reset it on a hit.</p>
         <div class="br-config" style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.6rem;align-items:end;margin-bottom:0.6rem;">
           <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">BANKROLL ($)
             <input type="number" id="br-set-bankroll" value="${bankroll.totalBankroll}" min="0" step="1" inputmode="decimal" style="padding:0.55rem;background:#111;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;width:100%;">
           </label>
-          <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">BASE BET ($)
+          <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">DENOMINATION ($)
             <input type="number" id="br-set-bet" value="${bankroll.baseBet}" min="0.25" step="0.25" inputmode="decimal" style="padding:0.55rem;background:#111;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;width:100%;">
           </label>
           <button id="br-apply" class="btn-gold" style="padding:0.6rem 1.1rem;white-space:nowrap;">Apply</button>
@@ -1187,12 +1249,13 @@
         </div>
         <div class="br-stats">
           <div class="br-stat"><span class="br-label">Bankroll</span><span class="br-value" style="color:#5EFF00;">${BTHG.formatMoney(state.bankroll)}</span></div>
+          <div class="br-stat"><span class="br-label">Wins Bucket</span><span class="br-value" style="color:#d4af37;">${BTHG.formatMoney(bankroll.winsBucket || 0)}</span></div>
           <div class="br-stat"><span class="br-label">Session P&L</span><span class="br-value" style="color:${state.sessionPnL >= 0 ? '#5EFF00' : '#ff3333'};">${state.sessionPnL >= 0 ? '+' : '-'}${BTHG.formatMoney(Math.abs(state.sessionPnL))}</span></div>
-          <div class="br-stat"><span class="br-label">Multiplier</span><span class="br-value" style="color:#d4af37;">${state.multiplier}x</span></div>
-          <div class="br-stat"><span class="br-label">Bet/Number</span><span class="br-value">${BTHG.formatMoney(state.betPerNumber)}</span></div>
+          <div class="br-stat"><span class="br-label">Multiplier</span><span class="br-value" style="color:#d4af37;">${realMultiplier}x</span></div>
+          <div class="br-stat"><span class="br-label">Bet/Number</span><span class="br-value">${BTHG.formatMoney(realBetPerNumber)}</span></div>
           <div class="br-stat"><span class="br-label">Win Rate</span><span class="br-value">${state.winRate}%</span></div>
           <div class="br-stat"><span class="br-label">Wins/Losses</span><span class="br-value">${state.winCount}/${state.lossCount}</span></div>
-          <div class="br-stat"><span class="br-label">Miss Streak</span><span class="br-value">${state.missStreak}</span></div>
+          <div class="br-stat"><span class="br-label">Trinity Level</span><span class="br-value">${realLevel}</span></div>
           <div class="br-stat"><span class="br-label">Total Wagered</span><span class="br-value">$${state.totalWagered.toFixed(2)}</span></div>
         </div>
 
@@ -1322,7 +1385,6 @@
           });
           const saved = BTHG.MachineProfiles.save(profileToSave);
           BTHG.MachineProfiles.setActive(saved.id);
-          syncTrinityEngineFromProfile();
         } catch (e) {
           limitsMsg.textContent = e.message;
           return;
@@ -1330,18 +1392,40 @@
       }
 
       const newBank = parseFloat(document.getElementById('br-set-bankroll').value);
-      const newBet = parseFloat(document.getElementById('br-set-bet').value);
+      const newBet = parseFloat(document.getElementById('br-set-bet').value); // denomination (rule 1)
+
+      // Task 23 (rule 1): denomination must be validated to [table min,
+      // table max] against whatever limits are active NOW (just-saved
+      // above, or the existing profile if the limit fields were left
+      // blank). All-or-nothing, same as the limits validation above —
+      // nothing else applies if this fails.
+      if (!isNaN(newBet) && newBet > 0) {
+        const profileNow = BTHG.MachineProfiles.getActive();
+        if (profileNow && profileNow.minUnit != null && profileNow.maxUnit != null) {
+          if (newBet < profileNow.minUnit || newBet > profileNow.maxUnit) {
+            limitsMsg.textContent = `Denomination must be between ${BTHG.formatMoney(profileNow.minUnit)} and ${BTHG.formatMoney(profileNow.maxUnit)}, your table limits.`;
+            return;
+          }
+        }
+      }
+
       if (!isNaN(newBank) && newBank >= 0) {
         bankroll.setBankroll(newBank); // re-baselines session start + peak too — never shows a phantom loss
       }
       if (!isNaN(newBet) && newBet > 0) {
         bankroll.baseBet = newBet;
       }
-      // Persist so the new bankroll/bet survive a reload and seed the next session
+      // Persist so the new bankroll/denomination survive a reload and seed the next session
       const s = BTHG.Storage.Settings.load();
       s.bankroll = bankroll.totalBankroll;
       s.baseBet = bankroll.baseBet;
       BTHG.Storage.Settings.save(s);
+
+      // Resync trinityEngine LAST, after baseBet (denomination) is applied,
+      // so it picks up the latest value — this also propagates the fresh
+      // instance onto tableUI.
+      syncTrinityEngineFromProfile();
+
       if (typeof tableUI !== 'undefined' && tableUI) tableUI.update();
       overlay.remove();
       showBankrollPanel(); // re-render with the updated values
