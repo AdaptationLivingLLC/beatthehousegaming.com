@@ -9,7 +9,7 @@
 // Contains: init, showSessionSetup, startSession,
 //   loadPreviousTable, launchTable, showCalibrationHub,
 //   showRPMCalibration, showPocketTimingOverlay, showSettingsPanel,
-//   showBankrollPanel, showDataInspector
+//   showBankrollPanel, showDataInspector, showWheelVerifierOverlay
 // ============================================================
 
 (function() {
@@ -1177,6 +1177,14 @@
           </label>
         </div>
         <div id="br-limits-msg" class="br-limits-msg"></div>
+        <div class="wv-launcher" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <button type="button" id="wv-open-btn" class="btn-outline"><i class="fas fa-compass"></i> Verify Wheel</button>
+          <span class="wv-status${activeProfile && activeProfile.verifiedLayout ? ' wv-status-verified' : ''}" id="wv-status-line">
+            ${activeProfile && activeProfile.verifiedLayout
+              ? 'Wheel layout verified for this table.'
+              : 'Wheel layout not verified. Using standard American order until verified.'}
+          </span>
+        </div>
         <div class="br-stats">
           <div class="br-stat"><span class="br-label">Bankroll</span><span class="br-value" style="color:#5EFF00;">${BTHG.formatMoney(state.bankroll)}</span></div>
           <div class="br-stat"><span class="br-label">Session P&L</span><span class="br-value" style="color:${state.sessionPnL >= 0 ? '#5EFF00' : '#ff3333'};">${state.sessionPnL >= 0 ? '+' : '-'}${BTHG.formatMoney(Math.abs(state.sessionPnL))}</span></div>
@@ -1269,6 +1277,20 @@
       });
     }
 
+    overlay.querySelector('#wv-open-btn').addEventListener('click', () => {
+      const profileForVerify = BTHG.MachineProfiles.getActive();
+      const limitsMsg = overlay.querySelector('#br-limits-msg');
+      if (!profileForVerify || profileForVerify.minUnit == null || profileForVerify.maxUnit == null) {
+        limitsMsg.textContent = 'Set your table minimum and maximum betting unit above, then click Apply, before verifying the wheel layout.';
+        return;
+      }
+      limitsMsg.textContent = '';
+      showWheelVerifierOverlay(profileForVerify, () => {
+        overlay.remove();
+        showBankrollPanel(); // re-render so the verified status line reflects the save
+      });
+    });
+
     overlay.querySelector('#br-apply').addEventListener('click', () => {
       // Table limits are validated and saved FIRST, and the whole Apply
       // is all-or-nothing on them: an invalid limit shows its message and
@@ -1326,6 +1348,180 @@
     });
 
     overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
+  }
+
+  // ============================================================
+  // WHEEL LAYOUT VERIFIER (Task 10)
+  // Opened from the Bankroll panel's "Verify Wheel" button (that panel
+  // is where table-limit/machine-profile fields already live — see
+  // .br-limits above). Requires a saved active profile (with table
+  // limits already Applied) since MachineProfiles.save() throws on a
+  // profile missing minUnit/maxUnit — the caller checks that and shows
+  // its own message before ever getting here, so `profile` below is
+  // always a real saved profile.
+  //
+  // Touch pad reuses .rt-cell sizing (see js/roulette-table.js's own
+  // felt cells) for 0 through 36 only — 00 is the implied start/end per
+  // BTHG.WheelVerifier.INSTRUCTION and is never itself tappable, matching
+  // validate()'s rule that a 37/"00" token appearing in the typed
+  // sequence is always an error, not a valid entry.
+  //
+  // `onDone` is called after a successful save (or Cancel), so the
+  // caller can re-render itself with the new verified status.
+  // ============================================================
+  function showWheelVerifierOverlay(profile, onDone) {
+    const WV = BTHG.WheelVerifier;
+    const N = WV.EXPECTED_LENGTH; // 37 — everything but the implied 00
+    let seq = [];         // numbers tapped so far, in entry order
+    let errorState = null; // last validate() failure, or null
+
+    const wv = document.createElement('div');
+    wv.className = 'rt-overlay rt-overlay-visible';
+    wv.innerHTML = `
+      <div class="rt-overlay-content wv-panel">
+        <h2 style="color:var(--accent);"><i class="fas fa-compass"></i> Verify Wheel Layout</h2>
+        <p class="wv-instruction">${WV.INSTRUCTION}</p>
+        <div class="wv-progress" id="wv-progress"></div>
+        <div class="wv-msg" id="wv-msg"></div>
+        <div class="wv-pad" id="wv-pad">
+          ${Array.from({ length: N }, (_, n) => `<button type="button" class="rt-cell wv-cell" data-num="${n}">${n}</button>`).join('')}
+        </div>
+        <div class="wv-actions">
+          <button type="button" id="wv-undo" class="btn-outline">Undo Last</button>
+          <button type="button" id="wv-reset" class="btn-outline">Reset</button>
+          <button type="button" class="rt-overlay-close btn-outline">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('app-root').appendChild(wv);
+
+    const padEl = wv.querySelector('#wv-pad');
+    const msgEl = wv.querySelector('#wv-msg');
+    const progressEl = wv.querySelector('#wv-progress');
+
+    function renderPad() {
+      padEl.querySelectorAll('.wv-cell').forEach(btn => {
+        const n = parseInt(btn.dataset.num, 10);
+        const idx = seq.indexOf(n);
+        const used = idx !== -1;
+        btn.classList.toggle('wv-used', used);
+        btn.disabled = used;
+        btn.classList.toggle('wv-error-cell', !!errorState && idx === errorState.position);
+      });
+    }
+
+    // Progress ring: N equal wedges around a circle, one per ENTRY
+    // POSITION (the order tapped), not physical wheel position — that
+    // physical mapping is exactly what this overlay is collecting, so it
+    // isn't known yet. Filled wedges show the number entered at that
+    // position; the wedge at errorState.position (if any) is highlighted
+    // instead of filled/empty.
+    function renderProgress() {
+      const size = 220, cx = size / 2, cy = size / 2;
+      const outerR = 98, innerR = 60, labelR = 80;
+      const wedgeAngle = (2 * Math.PI) / N;
+      let svg = `<svg viewBox="0 0 ${size} ${size}">`;
+      for (let i = 0; i < N; i++) {
+        const sa = -Math.PI / 2 + i * wedgeAngle;
+        const ea = sa + wedgeAngle;
+        const ma = sa + wedgeAngle / 2;
+        const ox1 = cx + outerR * Math.cos(sa), oy1 = cy + outerR * Math.sin(sa);
+        const ox2 = cx + outerR * Math.cos(ea), oy2 = cy + outerR * Math.sin(ea);
+        const ix1 = cx + innerR * Math.cos(sa), iy1 = cy + innerR * Math.sin(sa);
+        const ix2 = cx + innerR * Math.cos(ea), iy2 = cy + innerR * Math.sin(ea);
+        const isError = !!errorState && errorState.position === i;
+        const filled = i < seq.length;
+        const cls = 'wv-ring-wedge' + (isError ? ' wv-error' : (filled ? ' wv-filled' : ''));
+        svg += `<path d="M${ix1.toFixed(1)},${iy1.toFixed(1)} L${ox1.toFixed(1)},${oy1.toFixed(1)} A${outerR},${outerR} 0 0,1 ${ox2.toFixed(1)},${oy2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${innerR},${innerR} 0 0,0 ${ix1.toFixed(1)},${iy1.toFixed(1)}" class="${cls}"/>`;
+        if (filled) {
+          const lx = cx + labelR * Math.cos(ma), ly = cy + labelR * Math.sin(ma);
+          svg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" class="wv-ring-label">${seq[i]}</text>`;
+        }
+      }
+      svg += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" class="wv-ring-center-count">${seq.length}/${N}</text>`;
+      svg += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" class="wv-ring-center-label">ENTERED</text>`;
+      svg += `</svg>`;
+      progressEl.innerHTML = svg;
+    }
+
+    function renderMsg() {
+      msgEl.classList.remove('wv-msg-ok');
+      msgEl.textContent = errorState ? errorState.error : '';
+    }
+
+    function renderAll() {
+      renderPad();
+      renderProgress();
+      renderMsg();
+    }
+    renderAll();
+
+    function handleTap(n) {
+      if (seq.includes(n)) return; // pad already disables used cells; guard anyway
+      seq.push(n);
+      errorState = null;
+      if (seq.length === N) {
+        const res = WV.validate(seq);
+        if (res.ok) {
+          save();
+          return;
+        }
+        errorState = res;
+      }
+      renderAll();
+    }
+
+    padEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.wv-cell');
+      if (!btn || btn.disabled) return;
+      handleTap(parseInt(btn.dataset.num, 10));
+    });
+
+    wv.querySelector('#wv-undo').addEventListener('click', () => {
+      if (seq.length === 0) return;
+      seq.pop();
+      errorState = null;
+      renderAll();
+    });
+
+    wv.querySelector('#wv-reset').addEventListener('click', () => {
+      seq = [];
+      errorState = null;
+      renderAll();
+    });
+
+    wv.querySelector('.rt-overlay-close').addEventListener('click', () => {
+      wv.remove();
+      if (typeof onDone === 'function') onDone();
+    });
+
+    // On success: 37 prepended for 00 (see js/machine-profile.js
+    // AMERICAN_LAYOUT / js/utils.js WHEEL_LAYOUTS for the same encoding),
+    // verifiedLayout stamped true. Spreads `profile` into a fresh object
+    // rather than mutating it in place — MachineProfiles.save() mutates
+    // whatever object it's given (stamping id/createdAt the first time),
+    // so passing a copy keeps that side effect off the profile object the
+    // Bankroll panel closure is still holding a reference to.
+    function save() {
+      const fullLayout = [37, ...seq];
+      const profileToSave = { ...profile, wheelLayout: fullLayout, verifiedLayout: true };
+      try {
+        const saved = BTHG.MachineProfiles.save(profileToSave);
+        BTHG.MachineProfiles.setActive(saved.id);
+        msgEl.textContent = 'Wheel layout verified and saved for this table.';
+        msgEl.classList.add('wv-msg-ok');
+        renderPad();
+        renderProgress();
+        setTimeout(() => {
+          wv.remove();
+          if (typeof onDone === 'function') onDone();
+        }, 900);
+      } catch (e) {
+        errorState = null;
+        msgEl.classList.remove('wv-msg-ok');
+        msgEl.textContent = 'Could not save: ' + e.message;
+      }
+    }
   }
 
   // ---- Boot ---------------------------------------------------

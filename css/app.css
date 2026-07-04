@@ -1607,6 +1607,95 @@ body[data-theme="paper"] .rt-felt {
 }
 
 /* ============================================================
+   WHEEL LAYOUT VERIFIER (Task 10)
+   Walk the real physical wheel starting right after 00, tapping each
+   number in order until back at 00. Touch pad reuses .rt-cell sizing
+   (see Number Cells above) so it feels like the same table, just laid
+   out as a 0-36 grid instead of the felt's 3x12. Progress ring is a
+   plain SVG arc broken into 37 equal wedges — one per ENTRY POSITION
+   (the order the player is tapping in), not physical wheel position,
+   since physical position is exactly what is being verified.
+   ============================================================ */
+.wv-panel { text-align: left; max-width: 640px; }
+
+.wv-instruction {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.wv-progress {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.wv-progress svg { max-width: 220px; width: 100%; height: auto; }
+
+.wv-ring-wedge { fill: var(--cell-bg); stroke: var(--line); stroke-width: 0.5; }
+.wv-ring-wedge.wv-filled { fill: var(--accent); opacity: 0.85; }
+.wv-ring-wedge.wv-error { fill: var(--loss); opacity: 1; }
+.wv-ring-label { font-size: 6px; font-family: var(--font-body); fill: var(--text); font-weight: 700; }
+.wv-ring-center-count { font-size: 13px; font-family: var(--font-body); fill: var(--accent); font-weight: 700; }
+.wv-ring-center-label { font-size: 7px; font-family: var(--font-body); fill: var(--muted); letter-spacing: 0.05em; }
+
+.wv-msg {
+  min-height: 1.4em;
+  font-size: 0.8rem;
+  color: var(--loss, #ff6666);
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+
+.wv-msg.wv-msg-ok { color: var(--win); }
+
+.wv-pad {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 1rem;
+}
+
+/* Sizing (min-height, border, background, cursor) comes straight from
+   .rt-cell (see Number Cells above) — only the digit typography is
+   added here, since this pad has no oval/color-coded felt cell inside. */
+.wv-cell {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.wv-cell.wv-used {
+  opacity: 0.35;
+  cursor: default;
+  border-color: var(--line);
+}
+
+.wv-cell.wv-error-cell {
+  border-color: var(--loss);
+  box-shadow: 0 0 0 1px var(--loss);
+}
+
+.wv-cell:disabled { pointer-events: none; }
+
+.wv-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.wv-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.6rem;
+}
+
+.wv-status.wv-status-verified { color: var(--win); }
+
+/* ============================================================
    CALIBRATION HUB
    ============================================================ */
 

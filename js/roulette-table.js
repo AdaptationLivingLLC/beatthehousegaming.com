@@ -477,7 +477,7 @@
         const res = BTHG.PatternEngine.analyze({
           archive,
           liveSpins: this.engine.history,
-          layout: BTHG.WHEEL_LAYOUTS.american,
+          layout: (BTHG.MachineProfiles.getActive() || {}).wheelLayout || BTHG.WHEEL_LAYOUTS.american,
           finalActivated: this.engine.finalActivated,
           closersHit: this.engine.finalEightFirstHit.size,
         });
