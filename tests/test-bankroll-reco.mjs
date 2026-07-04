@@ -66,40 +66,64 @@ const { Bankroll, BankrollManager } = BTHG;
   console.log('empty/omitted archive -> insufficient-data message, no number: PASS');
 }
 
-// ---- Test 4: archive-based recommendation replays real archived series ----
-// Build a synthetic archived series record shaped exactly like
-// SeriesEngine#getSeriesDataForSave()'s output: spinHistory (plain numbers,
-// NOT spins), finalEight (the Final 8 snapshot, NOT including 0/00 — those
-// are always covered on top per getTrinityNumbers()), entrySpin (index at
-// which Final 8 activated), endType.
+// ---- Test 4: archive-based recommendation replays real archived series, ----
+// bounded by real closer resets, not one merged streak (review round 2 fix)
+//
+// A real multi-closer series: closer A (value 2) hits, ages out
+// (FINAL_EIGHT_AGE_LIMIT spins later) and is auto-replaced by C (value 6);
+// C then hits; B (value 4) completes the series. The archived record's
+// finalEight is only the END-of-series snapshot ({4, 6} — A is long gone by
+// the time the record is saved), but closerOffsets (js/roulette-table.js
+// _buildArchiveRecord) remembers all three real hits regardless of aging.
 {
-  // Closing phase covers {2, 4} plus 0/00 always -> coverage = {2,4,0,37}.
-  // Spins after entrySpin: miss, miss, miss, hit(2). At $1/unit, 4-number
-  // coverage: netPerUnit = 36 - 4 = 32. Depth 0 bet: ceil((0+1)/32 -> 1) = $1/number,
-  // total $4. After 3 misses spent = $12, level = 3. Then hit resets.
+  // Closing phase (spinHistory.slice(entrySpin=4)): 9,9,2,9,6,9,9,9,4
+  //   cycle 1: miss, miss, HIT(2)   -> 2 misses deep
+  //   cycle 2: miss, HIT(6)         -> 1 miss deep
+  //   cycle 3: miss, miss, miss, HIT(4) -> 3 misses deep
+  // closerOffsets are spin-offsets from entrySpin (1-based: spins[offset-1]
+  // is the hit): 2 hits at offset 3, 6 hits at offset 5, 4 hits at offset 9.
   const record = {
     machineId: 'm1', endType: 'auto',
-    spinHistory: [10, 11, 12, 13, /* entry */ 9, 9, 9, 2],
-    finalEight: [2, 4],
-    entrySpin: 4, // closing phase = spinHistory.slice(4) = [9,9,9,2]
+    spinHistory: [10, 11, 12, 13, /* entry */ 9, 9, 2, 9, 6, 9, 9, 9, 4],
+    finalEight: [4, 6], // A (2) has aged out of the snapshot by series end
+    entrySpin: 4,
+    closerOffsets: [9, 3, 5], // deliberately unsorted, proves sorting works
   };
 
-  const cyc = Bankroll.replaySeriesCycle({
-    spinHistory: record.spinHistory, entrySpin: record.entrySpin, finalEight: record.finalEight, minUnit: 1,
+  const bounded = Bankroll.replaySeriesCycle({
+    spinHistory: record.spinHistory, entrySpin: record.entrySpin, finalEight: record.finalEight,
+    closerOffsets: record.closerOffsets, minUnit: 1,
   });
-  assert.ok(cyc, 'replaySeriesCycle must return a result for a real closing phase');
-  assert.equal(cyc.worstDepth, 3, 'three misses (9,9,9) deep before the hit');
-  assert.ok(cyc.worstSpend > 0, 'some spend accrued before the hit');
-  assert.equal(cyc.currentLevel, 0, 'hit resets the cycle');
-  assert.equal(cyc.currentSpent, 0, 'hit resets spend');
+  assert.ok(bounded, 'replaySeriesCycle must return a result for a real closing phase');
+  assert.equal(bounded.worstDepth, 3, 'worst of the THREE bounded cycles (2, 1, 3 misses) is 3, not a merged streak');
+  assert.equal(bounded.worstSpend, 12);
+  assert.equal(bounded.currentLevel, 0, 'series ends on a hit, cycle reset');
+  assert.equal(bounded.currentSpent, 0);
+  assert.equal(bounded.estimated, undefined, 'closerOffsets present -> not a fallback estimate');
+
+  // Same record WITHOUT closerOffsets (simulating a pre-Task-5 archived
+  // record that never got the field) reproduces the OLD bug: numbers 2 and
+  // 6 are both real hits, but only 6 survives into the end-of-series
+  // finalEight snapshot, so spin "2" gets replayed as a miss and cycles 1+2
+  // merge into one inflated 4-miss streak.
+  const { closerOffsets, ...legacyRecord } = record;
+  const legacy = Bankroll.replaySeriesCycle({
+    spinHistory: legacyRecord.spinHistory, entrySpin: legacyRecord.entrySpin, finalEight: legacyRecord.finalEight, minUnit: 1,
+  });
+  assert.equal(legacy.estimated, true, 'no closerOffsets field at all -> flagged as an estimate');
+  assert.equal(legacy.worstDepth, 4, 'fallback merges the aged-out closer (2) into one longer miss streak');
+  assert.equal(legacy.worstSpend, 16);
+  assert.ok(legacy.worstDepth > bounded.worstDepth, 'unbounded fallback inflates worst depth versus the real bounded cycles');
+  assert.ok(legacy.worstSpend > bounded.worstSpend, 'unbounded fallback inflates worst spend versus the real bounded cycles');
 
   const r = Bankroll.recommendStart({ minUnit: 10, archive: [record] });
   assert.notEqual(r.amount, null, 'archive with one real completion produces a number');
-  assert.equal(r.worstDepth, 3);
-  assert.ok(r.worstSpend > 0);
+  assert.equal(r.worstDepth, 3, 'recommendStart uses the bounded worst, not the merged-streak worst');
+  assert.equal(r.worstSpend, 120);
   assert.equal(r.amount, Math.ceil(r.worstSpend * 1.25 / 50) * 50);
   assert.ok(r.explanation.includes('worst'));
-  console.log('archive-replay recommendation (real completed series): PASS');
+  assert.ok(!r.explanation.includes('estimate may be high'), 'no caveat when closerOffsets is present');
+  console.log('archive-replay recommendation bounded by real closer resets, not one merged streak: PASS');
 }
 
 // ---- Test 4b: replaySeriesCycle edge cases ----
@@ -114,11 +138,37 @@ const { Bankroll, BankrollManager } = BTHG;
   // the brief calls out) must be handled by the CALLER mapping r.spins ||
   // r.spinHistory, same as SeriesDB consumers elsewhere in this codebase —
   // worstFromArchive does this internally, so an archive record with only
-  // `spins` set must still be replayed.
+  // `spins` set must still be replayed. No closerOffsets field either
+  // (pre-Task-5 shape), so this also exercises the fallback path.
   const spinsFieldRecord = { endType: 'manual', spins: [10, 11, 9, 9, 2], finalEight: [2], entrySpin: 2 };
   const r = Bankroll.recommendStart({ minUnit: 1, archive: [spinsFieldRecord] });
   assert.notEqual(r.amount, null, '`spins` field (not spinHistory) is still picked up');
+  assert.ok(r.explanation.includes('estimate may be high'), 'fallback (no closerOffsets) is flagged in the explanation');
   console.log('replaySeriesCycle edge cases + spins/spinHistory field variance: PASS');
+}
+
+// ---- Test 4c: closerOffsets present but empty (a real Task-5+ series with ----
+// zero closer hits so far) must NOT be treated as an "older series" estimate,
+// and 0/00 hits fold in as reset points even though they never appear in
+// closerOffsets (closerOffsets only tracks first hits while a number sits
+// inside finalEight; 0/00 are always covered regardless of membership).
+{
+  const noHitsYet = Bankroll.replaySeriesCycle({
+    spinHistory: [9, 9, 9], entrySpin: 0, finalEight: [4, 6], closerOffsets: [], minUnit: 1,
+  });
+  assert.ok(noHitsYet, 'closing phase with spins but zero closer hits is still usable');
+  assert.equal(noHitsYet.worstDepth, 3, 'all three spins are real misses, one long cycle so far');
+  assert.equal(noHitsYet.estimated, undefined, 'empty closerOffsets (field present) is not a fallback estimate');
+
+  // 0 hit mid-stream resets the cycle even though it is not in finalEight
+  // and never produced a closerOffsets entry (it was already hit before
+  // Final 8 activated, in this scenario).
+  const zeroReset = Bankroll.replaySeriesCycle({
+    spinHistory: [9, 9, 0, 9], entrySpin: 0, finalEight: [4, 6], closerOffsets: [], minUnit: 1,
+  });
+  assert.equal(zeroReset.worstDepth, 2, '0 at offset 3 resets the cycle; only 1 miss follows it');
+  assert.equal(zeroReset.currentLevel, 1, 'one miss (9) after the 0 reset, series ends there');
+  console.log('closerOffsets edge cases (empty array, 0/00 fold-in reset): PASS');
 }
 
 // ---- Test 5: snapshot records ("Save & Keep Counting") are excluded ----

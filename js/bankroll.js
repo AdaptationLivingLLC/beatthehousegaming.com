@@ -173,6 +173,16 @@
   // Task 9. Reads a table's actual limits and this player's own archived
   // series (never the Task 3 stochastic simulation gate — see below) to
   // recommend a starting bankroll and show what a banked closer guarantees.
+  //
+  // Review round 2: replaySeriesCycle now bounds each real Trinity cycle by
+  // the record's own closerOffsets (js/roulette-table.js _buildArchiveRecord)
+  // instead of testing every spin against a single end-of-series finalEight
+  // snapshot. Final 8 membership is rolling (a closer ages out
+  // FINAL_EIGHT_AGE_LIMIT spins after its first hit and gets auto-replaced,
+  // js/utils.js + js/series-engine.js#_handleFinalEight), so the old
+  // single-snapshot approach replayed earlier real closer hits — whose
+  // numbers had since aged out of the snapshot — as misses, merging several
+  // bounded cycles into one inflated streak. See replayBoundedCycles below.
 
   function money(n) {
     if (BTHG.formatMoney) return BTHG.formatMoney(n);
@@ -185,27 +195,69 @@
    * activated Final 8 onward — before that, finalEight is empty/still
    * filling and nothing is actually being bet the way Trinity bets it).
    * Works for both an archived SeriesDB record (spinHistory/finalEight/
-   * entrySpin all present on the record) and the live, still-in-progress
-   * SeriesEngine (same field names on the engine instance itself), which
-   * is why this takes plain { spinHistory, entrySpin, finalEight, minUnit }
-   * rather than a class instance.
+   * entrySpin/closerOffsets all present on the record) and the live,
+   * still-in-progress SeriesEngine (same field names on the engine
+   * instance itself, closerOffsets derived by the caller from
+   * finalEightFirstHitSpins), which is why this takes plain
+   * { spinHistory, entrySpin, finalEight, closerOffsets, minUnit } rather
+   * than a class instance.
+   *
+   * `closerOffsets`, when present (even an empty array), is the
+   * AUTHORITATIVE source of real cycle-reset points: each entry is a
+   * spin-offset (from entrySpin) at which a genuine Final 8 closer was hit
+   * for the first time (js/roulette-table.js _buildArchiveRecord). Final 8
+   * membership is rolling — a closer ages out FINAL_EIGHT_AGE_LIMIT spins
+   * after its first hit and is auto-replaced (js/utils.js,
+   * js/series-engine.js#_handleFinalEight) — so `finalEight` alone (an
+   * end-of-series snapshot) cannot be used as a single coverage set across
+   * the whole closing phase without replaying earlier real closer hits,
+   * whose numbers have since aged out of the snapshot, as misses. Bounding
+   * on closerOffsets instead (see replayBoundedCycles) fixes that: every
+   * spin strictly between two resets is a real miss by construction, no
+   * stale membership test needed. Every literal 0/00 spin in the window is
+   * folded in as an extra reset point too — 0 and 00 are ALWAYS covered
+   * regardless of Final 8 membership (SeriesEngine#getTrinityNumbers()), so
+   * a 0/00 hit resets the live cycle even on a record where 0/00 was
+   * already hit before Final 8 activated (and so never appears in
+   * closerOffsets, which only tracks first hits while a number sits inside
+   * finalEight). Known residual gap: a REPEAT hit on a Final 8 number that
+   * is still within its aging grace window (not yet evicted) also resets
+   * the live cycle but is not recorded anywhere the archive keeps (only
+   * first hits are tracked) — out of scope here since fixing it needs
+   * roulette-table.js/series-engine.js to record every hit offset, not just
+   * the first, and this task's files don't include those.
+   *
+   * If `closerOffsets` is `undefined` (the field genuinely does not exist
+   * on the record — an archived series saved before Task 5 added it), there
+   * is no authoritative reset data at all, so this falls back to the old
+   * single end-of-series coverage-set replay across the whole closing
+   * phase. That fallback can still merge real cycles into one inflated
+   * streak; the result is flagged `estimated: true` so callers can say so.
    *
    * Coverage always includes 0 and 37 ("00") on top of finalEight,
    * matching SeriesEngine#getTrinityNumbers() — 0/00 are always covered,
    * whether or not they happen to already be inside finalEight.
    *
-   * Returns worstDepth/worstSpend (the peak reached anywhere in the
-   * replay) AND currentLevel/currentSpent (the state after the LAST spin
+   * Returns worstDepth/worstSpend (the peak reached in any single bounded
+   * cycle) AND currentLevel/currentSpent (the state after the LAST spin
    * replayed — i.e. "where the live cycle stands right now" when called
    * on an in-progress series). Returns null if there is nothing usable to
    * replay (series never reached Final 8, or no spins after activation).
    */
-  function replaySeriesCycle({ spinHistory, entrySpin, finalEight, minUnit = 1 } = {}) {
+  function replaySeriesCycle({ spinHistory, entrySpin, finalEight, closerOffsets, minUnit = 1 } = {}) {
     if (entrySpin == null) return null;
     const spins = (spinHistory || []).slice(entrySpin);
     if (spins.length === 0) return null;
     const coverageSet = new Set([...(finalEight || []), 0, 37]);
-    const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage: coverageSet.size });
+    const coverage = coverageSet.size;
+
+    if (closerOffsets !== undefined) {
+      const resetOffsets = new Set(closerOffsets);
+      spins.forEach((n, i) => { if (n === 0 || n === 37) resetOffsets.add(i + 1); });
+      return replayBoundedCycles(spins, [...resetOffsets], minUnit, coverage);
+    }
+
+    const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
     let worstDepth = 0, worstSpend = 0;
     for (const n of spins) {
       if (coverageSet.has(n)) {
@@ -216,7 +268,56 @@
         if (engine.spent > worstSpend) worstSpend = engine.spent;
       }
     }
-    return { worstDepth, worstSpend, currentLevel: engine.level, currentSpent: engine.spent };
+    return { worstDepth, worstSpend, currentLevel: engine.level, currentSpent: engine.spent, estimated: true };
+  }
+
+  /**
+   * Replay `spins` as a sequence of bounded real Trinity cycles, reset at
+   * each offset in `resetOffsets` (1-based, counted from the start of
+   * `spins` — matches how closerOffsets/`spinAt - entrySpin` line up with
+   * `spinHistory.slice(entrySpin)`, since totalSpins increments before the
+   * spin is pushed to history: offset `o` is `spins[o - 1]`). Everything
+   * strictly between the previous reset (or the start) and the next reset
+   * is a real miss; the trailing remainder after the last reset (series
+   * ended mid-streak, or a live series still mid-cycle) is its own bounded
+   * cycle too. worst = the deepest/costliest of all these cycles, never a
+   * merged total across cycle boundaries.
+   */
+  function replayBoundedCycles(spins, resetOffsets, minUnit, coverage) {
+    const resets = resetOffsets
+      .filter(o => Number.isFinite(o) && o > 0 && o <= spins.length)
+      .sort((a, b) => a - b);
+
+    let worstDepth = 0, worstSpend = 0, currentLevel = 0, currentSpent = 0;
+    let cursor = 0;
+
+    for (const offset of resets) {
+      const hitIdx = offset - 1;
+      if (hitIdx < cursor) continue; // duplicate/out-of-order offset guard
+      const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
+      for (let i = cursor; i < hitIdx; i++) {
+        engine.recordMiss();
+        if (engine.level > worstDepth) worstDepth = engine.level;
+        if (engine.spent > worstSpend) worstSpend = engine.spent;
+      }
+      engine.recordHit();
+      currentLevel = engine.level;
+      currentSpent = engine.spent;
+      cursor = hitIdx + 1;
+    }
+
+    if (cursor < spins.length) {
+      const engine = new BTHG.TrinityEngine({ minUnit, maxUnit: Infinity, coverage });
+      for (let i = cursor; i < spins.length; i++) {
+        engine.recordMiss();
+        if (engine.level > worstDepth) worstDepth = engine.level;
+        if (engine.spent > worstSpend) worstSpend = engine.spent;
+      }
+      currentLevel = engine.level;
+      currentSpent = engine.spent;
+    }
+
+    return { worstDepth, worstSpend, currentLevel, currentSpent };
   }
 
   /**
@@ -225,22 +326,30 @@
    * see recommendStart). Only real completions count ('auto' or 'manual'
    * endType) — "Save & Keep Counting" snapshot records are not finished
    * series and would skew this (see js/storage.js SeriesDB doc comment).
-   * Returns null if the archive has nothing usable yet.
+   * Returns null if the archive has nothing usable yet, otherwise
+   * { worstDepth, worstSpend, estimated }. `estimated` is true only when
+   * the specific record that produced the returned worstDepth or
+   * worstSpend had no closerOffsets field at all (saved before Task 5) and
+   * so was replayed via replaySeriesCycle's single-snapshot fallback —
+   * recommendStart surfaces this as a caveat instead of silently trusting a
+   * possibly-inflated number.
    */
   function worstFromArchive(archive) {
     const completed = (archive || []).filter(r => r && (r.endType === 'auto' || r.endType === 'manual'));
     let worstDepth = 0, worstSpend = 0, found = false;
+    let depthEstimated = false, spendEstimated = false;
     for (const record of completed) {
       const spinHistory = record.spins || record.spinHistory || [];
       const result = replaySeriesCycle({
-        spinHistory, entrySpin: record.entrySpin, finalEight: record.finalEight, minUnit: 1,
+        spinHistory, entrySpin: record.entrySpin, finalEight: record.finalEight,
+        closerOffsets: record.closerOffsets, minUnit: 1,
       });
       if (!result) continue;
       found = true;
-      if (result.worstDepth > worstDepth) worstDepth = result.worstDepth;
-      if (result.worstSpend > worstSpend) worstSpend = result.worstSpend;
+      if (result.worstDepth > worstDepth) { worstDepth = result.worstDepth; depthEstimated = !!result.estimated; }
+      if (result.worstSpend > worstSpend) { worstSpend = result.worstSpend; spendEstimated = !!result.estimated; }
     }
-    return found ? { worstDepth, worstSpend } : null;
+    return found ? { worstDepth, worstSpend, estimated: depthEstimated || spendEstimated } : null;
   }
 
   /**
@@ -286,9 +395,17 @@
     }
     const worstSpend = worst.worstSpend * minUnit;
     const amount = Math.ceil(worstSpend * 1.25 / 50) * 50;
+    // A record saved before Task 5 added closerOffsets has no authoritative
+    // reset data to bound cycles by, so its contribution here came from
+    // replaySeriesCycle's single-snapshot fallback, which can still merge
+    // real cycles into one inflated streak. Say so rather than silently
+    // presenting a number that may be padded.
+    const caveat = worst.estimated
+      ? ' Part of this comes from an older series recorded before per-closer tracking existed, so this estimate may be high.'
+      : '';
     return {
       amount, worstDepth: worst.worstDepth, worstSpend,
-      explanation: `Recommended start covers your worst tracked cycle. ${money(worst.worstSpend)} was spent at a $1 unit across ${worst.worstDepth} misses; scaled to your $${minUnit} unit that is ${money(worstSpend)}, plus a 25 percent safety margin, rounded up to the nearest $50.`,
+      explanation: `Recommended start covers your worst tracked cycle. ${money(worst.worstSpend)} was spent at a $1 unit across ${worst.worstDepth} misses; scaled to your $${minUnit} unit that is ${money(worstSpend)}, plus a 25 percent safety margin, rounded up to the nearest $50.${caveat}`,
     };
   }
 

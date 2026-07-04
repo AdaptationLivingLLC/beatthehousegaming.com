@@ -15,16 +15,20 @@
 (function() {
   const BTHG = window.BTHG;
 
+  // trinityEngine: instantiated/kept in sync here per Task 9's plan
+  // requirement (the Apply handler re-instantiates it with the table's
+  // limits, see syncTrinityEngineFromProfile below). Not read by any
+  // bet-sizing code path yet — that wiring into live play is Task 13's job.
   let engine, bankroll, fusion, predictor, tableUI, trinityEngine;
 
   // Task 9: keep the module-level TrinityEngine in sync with the active
-  // machine profile's table limits. Cheap to rebuild on every call (this
-  // engine only ever holds config — minUnit/maxUnit/floor — for display;
-  // the live "how deep is this cycle right now" numbers shown in the
-  // Bankroll panel come from replaying the in-progress SeriesEngine's own
-  // history via BTHG.Bankroll.replaySeriesCycle, not from mutating this
-  // instance spin by spin). Returns the active profile, or null if none
-  // exists / it has no limits set yet.
+  // machine profile's table limits, per the Apply handler's plan
+  // requirement. Cheap to rebuild on every call. The live "how deep is this
+  // cycle right now" numbers shown in the Bankroll panel come from
+  // replaying the in-progress SeriesEngine's own history via
+  // BTHG.Bankroll.replaySeriesCycle, not from mutating this instance spin
+  // by spin. Returns the active profile, or null if none exists / it has
+  // no limits set yet.
   function syncTrinityEngineFromProfile() {
     const profile = BTHG.MachineProfiles.getActive();
     if (profile && profile.minUnit != null && profile.maxUnit != null) {
@@ -1223,8 +1227,16 @@
 
         let live = { active: !!(engine && engine.finalActivated) };
         if (live.active && minUnit) {
+          // Same closerOffsets derivation _buildArchiveRecord uses in
+          // roulette-table.js (spinAt - entrySpin per number's first hit
+          // while in Final 8), computed here from the live engine's own
+          // finalEightFirstHitSpins so the live projection is bounded by
+          // real closer resets too, not a single stale coverage snapshot.
+          const liveCloserOffsets = Object.values(engine.finalEightFirstHitSpins || {})
+            .map(spinAt => spinAt - engine.entrySpin);
           const cyc = BTHG.Bankroll.replaySeriesCycle({
-            spinHistory: engine.history, entrySpin: engine.entrySpin, finalEight: engine.finalEight, minUnit,
+            spinHistory: engine.history, entrySpin: engine.entrySpin, finalEight: engine.finalEight,
+            closerOffsets: liveCloserOffsets, minUnit,
           });
           if (cyc) {
             live.currentLevel = cyc.currentLevel;
