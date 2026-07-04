@@ -72,38 +72,45 @@ function bandTape() {
   return tape;
 }
 
-// ---- Test 1: band detection + live watch(ago=58) + overdue(ago=85) ----
-// (brief's primary scenario: numbers seeded to re-hit at 62-68 spins)
+// ---- Test 1: quantile stats + rhythm + drag watch(ago=67) + deep
+// drag(ago=85). Gap pool: 7 each of 62/64/65/66/68 -> median 65,
+// q75 66, q90 68. Pockets 1-5 all have cv=0 rhythms; pockets 1 (ago
+// 65, window [43,93]) and 2 (ago 50, window [45,96]) are inside their
+// personal windows; 3/4/5 (ago 42/34/19) are below theirs. ----
 {
   const tape = bandTape();
   const lastIdx = tape.length - 1;
-  // Watch candidate: pocket 8, single hit, exactly 58 spins ago.
-  tape[lastIdx - 58] = { number: 8, timestamp: tape[lastIdx - 58].timestamp };
-  // Overdue candidate: pocket 9, single hit, exactly 85 spins ago.
+  // Drag-watch candidate: pocket 8, single hit, exactly 67 spins ago
+  // (inside [q75=66, q90=68]).
+  tape[lastIdx - 67] = { number: 8, timestamp: tape[lastIdx - 67].timestamp };
+  // Deep-drag candidate: pocket 9, single hit, 85 spins ago (> q90=68).
   tape[lastIdx - 85] = { number: 9, timestamp: tape[lastIdx - 85].timestamp };
 
   const res = CW.analyze({ tape });
 
   assert.equal(res.sittings.length, 1, 'one continuous sitting (all spins 1s apart)');
-  assert.ok(res.band, 'band should be computed (35 pooled gaps >= 30)');
-  assert.equal(res.band.lo, 60, 'band low bound is the 60s bucket');
-  assert.equal(res.band.hi, 69, 'band high bound is the 60s bucket (no adjacent expansion)');
-  assert.equal(res.band.median, 65);
-  assert.equal(res.band.count, 35);
+  assert.ok(res.stats, 'stats should be computed (35 pooled gaps >= 30)');
+  assert.equal(res.stats.median, 65);
+  assert.equal(res.stats.q75, 66);
+  assert.equal(res.stats.q90, 68);
+  assert.equal(res.stats.max, 68);
+  assert.equal(res.stats.count, 35);
 
-  // Pocket 1 (last cycle hit 65 spins ago) rides along in the watch
-  // band by construction — see bandTape().
-  deepEqual(res.watch, [{ number: 1, ago: 65 }, { number: 8, ago: 58 }],
-    'ago=58 falls in [55,69] -> watch (with pocket 1 at ago=65)');
-  deepEqual(res.overdue, [{ number: 9, ago: 85 }], 'ago=85 > 79 (69+10) -> overdue');
+  deepEqual(res.watch, [{ number: 8, ago: 67 }], 'ago=67 in [66,68] -> drag watch');
+  deepEqual(res.overdue, [{ number: 9, ago: 85 }], 'ago=85 > q90 -> deep drag');
+  deepEqual(res.rhythmHits.map(r => r.number), [1, 2],
+    'pockets 1 and 2 are rhythmic AND inside their personal windows');
 
-  assert.ok(res.alerts.length <= 3, 'alert cap of 3');
-  assert.equal(res.alerts.length, 3, 'band summary + watch + overdue, one each');
+  assert.equal(res.alerts.length, 3, 'rhythm + drag watch + deep drag');
   assert.ok(res.alerts.every(a => a.kind === 'cycle'));
-  assert.ok(/60 to 70/.test(res.alerts[0].message), 'band summary states the window');
-  assert.ok(/Watch 1, 8:/.test(res.alerts[1].message) && /58\+/.test(res.alerts[1].message));
-  assert.ok(/^9 overdue/.test(res.alerts[2].message) && /85\+/.test(res.alerts[2].message));
-  console.log('band detection + watch(58) + overdue(85): PASS');
+  assert.ok(/^Rhythm: 1 tends to come back about every 62 spins \(7 cycles\) and is unhit 65/.test(res.alerts[0].message));
+  assert.ok(/2 tends to come back about every 64 spins/.test(res.alerts[0].message));
+  assert.ok(/^Dragging: 8 \(67\)/.test(res.alerts[1].message), 'drag watch names the number and its ago');
+  assert.ok(/66 spin drag mark/.test(res.alerts[1].message), 'drag threshold is the wheel\'s own q75');
+  assert.ok(/100% of drags this deep hit within the next 30 spins \(14 drags seen\)/.test(res.alerts[1].message),
+    'resolve odds computed from the wheel\'s own pooled gaps');
+  assert.ok(/^Deep drag: 9 \(85\)/.test(res.alerts[2].message) && /longest seen 68/.test(res.alerts[2].message));
+  console.log('quantile stats + rhythm + drag watch(67) + deep drag(85): PASS');
 }
 
 // ---- Test 1b (bonus, beyond the brief's list): stale "now" suppresses
@@ -114,16 +121,19 @@ function bandTape() {
 {
   const tape = bandTape();
   const lastIdx = tape.length - 1;
-  tape[lastIdx - 58] = { number: 8, timestamp: tape[lastIdx - 58].timestamp };
+  tape[lastIdx - 67] = { number: 8, timestamp: tape[lastIdx - 67].timestamp };
 
   const lastTs = tape[lastIdx].timestamp;
   const res = CW.analyze({ tape, nowLive: lastTs + 3 * HOUR }); // 3h later, no new spins
 
-  assert.ok(res.band, 'background band still reported (rule 3: history always pooled)');
-  assert.equal(res.band.lo, 60);
+  assert.ok(res.stats, 'background stats still reported (rule 3: history always pooled)');
+  assert.equal(res.stats.median, 65);
   deepEqual(res.watch, [], 'no live sitting in progress right now -> no watch');
   deepEqual(res.overdue, [], 'no live sitting in progress right now -> no overdue');
-  console.log('stale nowLive suppresses live watch/overdue but keeps background band: PASS');
+  deepEqual(res.rhythmHits, [], 'no live sitting -> no rhythm hits either');
+  assert.equal(res.alerts.length, 1, 'only the background summary card');
+  assert.ok(/half of re-hits come within 65/i.test(res.alerts[0].message));
+  console.log('stale nowLive suppresses live watch/overdue but keeps background stats: PASS');
 }
 
 // ---- Test 2: sitting split (two clusters 3 hours apart) ----
@@ -215,20 +225,55 @@ function bandTape() {
 {
   const tape = bandTape();
   const lastIdx = tape.length - 1;
-  // 37 (00) is the watch candidate, at ago=58.
-  tape[lastIdx - 58] = { number: 37, timestamp: tape[lastIdx - 58].timestamp };
+  // 37 (00) is the drag-watch candidate, at ago=67 (inside [66,68]).
+  tape[lastIdx - 67] = { number: 37, timestamp: tape[lastIdx - 67].timestamp };
 
   const res = CW.analyze({ tape });
-  deepEqual(res.watch, [{ number: 1, ago: 65 }, { number: 37, ago: 58 }]);
+  deepEqual(res.watch, [{ number: 37, ago: 67 }]);
 
-  const watchAlert = res.alerts.find(a => /^Watch /.test(a.message));
-  assert.ok(watchAlert, 'watch alert present');
-  assert.ok(/Watch 1, 00:/.test(watchAlert.message), 'message shows 00, not the raw number 37');
+  const watchAlert = res.alerts.find(a => /^Dragging: /.test(a.message));
+  assert.ok(watchAlert, 'drag watch alert present');
+  assert.ok(/Dragging: 00 \(67\)/.test(watchAlert.message), 'message shows 00, not the raw number 37');
   for (const a of res.alerts) {
     assert.ok(!/\b37\b/.test(a.message), 'no stray untranslated "37" token in any message');
     assert.ok(!/[–—]/.test(a.message), 'no dashes in user-facing copy');
   }
   console.log('00/37 translation in messages + no dashes: PASS');
+}
+
+// ---- Test 6: personal rhythm detection + resolve odds ----
+{
+  claimed.clear();
+  const TOTAL = 500;
+  const tape = fillerTape(TOTAL, BASE_TS, 60000);
+  // Pocket 11: 7 hits with gaps 60,65,62,63,62,63 -> mean 62.5, tight
+  // cluster (cv ~0.02), a genuine personal rhythm.
+  for (const idx of [0, 60, 125, 187, 250, 312, 375]) {
+    tape[idx] = { number: 11, timestamp: tape[idx].timestamp };
+  }
+  // Pocket 12: 7 hits with wild gaps 5,80,12,140,33,9 -> cv well over
+  // 0.6, must NOT be called a rhythm.
+  for (const idx of [5, 10, 90, 102, 242, 275, 284]) {
+    tape[idx] = { number: 12, timestamp: tape[idx].timestamp };
+  }
+
+  const sittings = CW.splitSittings(tape);
+  const byNum = CW.perNumberGaps(sittings);
+  deepEqual(byNum.get(11), [60, 65, 62, 63, 62, 63]);
+  deepEqual(byNum.get(12), [5, 80, 12, 140, 33, 9]);
+
+  const rhythms = CW.findRhythms(byNum);
+  assert.equal(rhythms.length, 1, 'only the tight cluster qualifies');
+  assert.equal(rhythms[0].number, 11);
+  assert.equal(rhythms[0].k, 6);
+  assert.ok(Math.abs(rhythms[0].mean - 62.5) < 0.001);
+  assert.ok(rhythms[0].cv < 0.05, 'near-zero cv for a fixed-period cycle');
+
+  // resolveOdds: of the 10 gaps that reached 60, the 6 under 90
+  // resolved within the 30-spin horizon -> 60%.
+  deepEqual(CW.resolveOdds([10, 20, 60, 65, 70, 75, 80, 85, 90, 95, 100, 120], 60, 30), { pct: 60, n: 10 });
+  assert.equal(CW.resolveOdds([10, 20, 60], 60, 30), null, 'under 10 drags at threshold -> no odds quoted');
+  console.log('personal rhythm detection + resolve odds: PASS');
 }
 
 console.log('cycle-watch: ALL PASS');
