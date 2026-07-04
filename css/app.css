@@ -2616,7 +2616,7 @@ body[data-theme="paper"] .pt-felt-wrapper {
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.55rem 0.1rem;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--line);
   font-size: 0.8rem;
 }
 

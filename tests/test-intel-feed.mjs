@@ -135,4 +135,59 @@ function countCards(html) {
   console.log('reset clears entries, dedup memory, and signal: PASS');
 }
 
+// ---- Test 6: undo re-analyzes intel feed (Task 8 review fix) ----
+//
+// _updateIntelFeed() was only ever called from the spin path
+// (_onNumberTap), so the pinned signal/badge kept showing the pre-undo
+// call indefinitely after an undo. This drives the REAL _onUndo() method
+// on RouletteTableUI (js/roulette-table.js), not a re-implementation of
+// it, so it actually exercises the fix rather than just asserting intent.
+//
+// update()/_saveState() are stubbed at the instance level (a normal JS
+// pattern: instance properties shadow prototype methods) because they
+// walk a real DOM tree this harness doesn't provide; BTHG.Storage.SpinDB
+// is stubbed for the same reason. _updateIntelFeed() itself is left as
+// the real prototype method but spied via a wrapper, so we're asserting
+// the actual call site added to _onUndo, not a mock standing in for it.
+{
+  const BTHG = loadBTHG(['js/utils.js', 'js/roulette-table.js']);
+  BTHG.Storage = { SpinDB: { deleteLastSpin() {} } };
+  const RT = BTHG.RouletteTableUI;
+
+  function makeRT(engineOverrides) {
+    const engine = Object.assign({ frozen: false, undoLastSpin: () => true }, engineOverrides);
+    const container = { querySelector() { return null; } };
+    const rt = new RT(container, engine, {}, {}, {});
+    rt.update = () => {};
+    rt._saveState = () => {};
+    let calls = 0;
+    const realUpdateIntelFeed = rt._updateIntelFeed.bind(rt);
+    rt._updateIntelFeed = () => { calls++; realUpdateIntelFeed(); };
+    return { rt, getCalls: () => calls };
+  }
+
+  // Case 1: normal undo re-analyzes the intel feed.
+  {
+    const { rt, getCalls } = makeRT({ undoLastSpin: () => true });
+    rt._onUndo();
+    assert.equal(getCalls(), 1, '_onUndo must call _updateIntelFeed() after a successful undo');
+  }
+
+  // Case 2: frozen board — _onUndo bails out before touching anything.
+  {
+    const { rt, getCalls } = makeRT({ frozen: true, undoLastSpin: () => true });
+    rt._onUndo();
+    assert.equal(getCalls(), 0, 'frozen board must not re-analyze on undo (no-op path)');
+  }
+
+  // Case 3: undoLastSpin() returns false (nothing to undo) — no re-analysis.
+  {
+    const { rt, getCalls } = makeRT({ undoLastSpin: () => false });
+    rt._onUndo();
+    assert.equal(getCalls(), 0, 'a no-op undo (empty history) must not re-analyze the feed');
+  }
+
+  console.log('_onUndo() re-analyzes intel feed (signal no longer stale post-undo): PASS');
+}
+
 console.log('intel-feed: ALL PASS');

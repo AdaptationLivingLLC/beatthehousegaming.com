@@ -500,6 +500,14 @@
         BTHG.Storage.SpinDB.deleteLastSpin(BTHG._currentMachineId || 'default');
         this.update();
         this._saveState();
+
+        // Re-analyze against post-undo engine state (Task 8 review fix).
+        // Without this, the pinned signal banner and #ss-signal badge kept
+        // showing the pre-undo BET/HOLD/STOP call indefinitely, since
+        // _updateIntelFeed() was only ever invoked from the spin path.
+        // Per-series dedup memory in IntelFeed is intentionally left as is
+        // (not reset here); undo doesn't start a new series.
+        this._updateIntelFeed();
       }
     }
 
