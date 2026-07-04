@@ -2572,6 +2572,93 @@ body[data-theme="paper"] .pt-felt-wrapper {
   opacity: 0.6;
 }
 
+/* ---- Intel Feed content (Task 8) — pinned signal banner + cards.
+   Rendered by js/intel-feed.js into the #intel-feed container above;
+   themed entirely through the existing token set so all 3 themes work
+   without any changes here. ---- */
+.if-signal-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+}
+
+.if-signal-state {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.if-signal-bet .if-signal-state { color: var(--win); }
+.if-signal-bet { border-left-color: var(--win); }
+.if-signal-stop .if-signal-state { color: var(--loss); }
+.if-signal-stop { border-left-color: var(--loss); }
+
+.if-signal-reason {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.if-card {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.55rem 0.1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.8rem;
+}
+
+.if-card:last-child { border-bottom: none; }
+
+.if-card-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.if-card-message {
+  flex: 1 1 200px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.if-card-samples {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.if-card-time {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+/* ---- Status Strip signal badge (mirrors the pinned banner above —
+   visible in phone landscape where #intel-feed itself is hidden) ---- */
+#ss-signal .ss-chip-value { color: var(--accent); }
+#ss-signal.ss-signal-bet .ss-chip-value { color: var(--win); }
+#ss-signal.ss-signal-stop .ss-chip-value { color: var(--loss); }
+
 /* ---- Rotate Prompt (phone portrait only) ---- */
 #rotate-prompt {
   display: none;

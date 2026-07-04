@@ -413,6 +413,9 @@
       // Record spin (modifies engine state)
       this.engine.recordSpin(num);
 
+      // Pattern engine + intel feed: re-analyze on every spin (Task 8).
+      this._updateIntelFeed();
+
       // Record bankroll P&L stats using pre-spin state. This must run
       // regardless of bettingEnabled — bettingEnabled only gates the manual
       // "BET ON" UI toggle, not whether a Trinity bet situation existed.
@@ -456,6 +459,31 @@
     // covered numbers, independent of that toggle.
     _shouldTrackBet(wasFinalActive, numbersPlayed) {
       return wasFinalActive && numbersPlayed > 0;
+    }
+
+    // Re-runs PatternEngine.analyze against this machine's archived series
+    // plus the live spin sequence, and forwards its output into the intel
+    // feed (Task 8). Archive lookup is async (IndexedDB), so this can't
+    // block the tap handler — the feed just updates a beat after the rest
+    // of the UI. closersHit uses finalEightFirstHit.size (count of Final 8
+    // numbers hit at least once during the current closing phase), the
+    // same source _buildArchiveRecord uses via finalEightFirstHitSpins to
+    // compute closerOffsets on archive, so the live "closers hit" count and
+    // the historical closerOffsets it's compared against stay consistent.
+    _updateIntelFeed() {
+      if (!BTHG.IntelFeed || !BTHG.PatternEngine) return;
+      const machineId = BTHG._currentMachineId || 'default';
+      BTHG.Storage.SeriesDB.getSeriesByMachine(machineId).then(archive => {
+        const res = BTHG.PatternEngine.analyze({
+          archive,
+          liveSpins: this.engine.history,
+          layout: BTHG.WHEEL_LAYOUTS.american,
+          finalActivated: this.engine.finalActivated,
+          closersHit: this.engine.finalEightFirstHit.size,
+        });
+        res.alerts.forEach(a => BTHG.IntelFeed.push(a));
+        BTHG.IntelFeed.setSignal(res.entry);
+      }).catch(e => console.warn('IntelFeed update failed:', e));
     }
 
     _flashCell(num) {
@@ -553,6 +581,7 @@
         this.engine._recordManualCompletion();
         const seriesData = this._buildArchiveRecord(this.engine, 'manual', fusionSnapshot, machineId, casino);
         this.engine.resetSeries();
+        if (BTHG.IntelFeed) BTHG.IntelFeed.reset();
         BTHG.Storage.SeriesDB.saveSeries(seriesData)
           .then(() => BTHG.Storage.SpinDB.markArchived(machineId, seriesData.timestamp))
           .then(() => {
@@ -578,6 +607,7 @@
       // the next load does not replay them as part of the fresh series.
       document.getElementById('es-discard').addEventListener('click', () => {
         this.engine.discardSeries();
+        if (BTHG.IntelFeed) BTHG.IntelFeed.reset();
         BTHG.Storage.SpinDB.markArchived(machineId, 'discard:' + Date.now()).then(() => {
           this.update(); this._saveState(); close();
           this._showToast('Series discarded. Fresh start at spin 1.', 2500);
@@ -693,6 +723,7 @@
         .then(() => {
           BTHG.Storage.LS.remove('frozen_series');
           this.engine.resetSeries();
+          if (BTHG.IntelFeed) BTHG.IntelFeed.reset();
           this.container.classList.remove('series-complete');
           const banner = document.getElementById('series-complete-banner');
           if (banner) banner.remove();

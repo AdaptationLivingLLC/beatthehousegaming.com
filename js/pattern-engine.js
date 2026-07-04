@@ -154,6 +154,12 @@
       message: `Across ${offsets.length} historical closer timings, the middle half land between spin ${Math.round(q1)} and spin ${Math.round(q3)} into the close, with a median around spin ${Math.round(q2)}.`,
     }];
     if (finalActivated && Array.isArray(liveSpins) && liveSpins.length > 0) {
+      // liveSpins.length is a POSITION PROXY, not a true "spins into the
+      // close" count — it's the whole live series' spin count, not spins
+      // since Final 8/closing activated. Good enough for Task 8's alert
+      // wiring; Task 15 (timing engine) replaces this with the real
+      // entrySpin-relative offset (see entrySpin/closerOffsets elsewhere
+      // in this file and in js/series-engine.js).
       const pos = liveSpins.length;
       if (pos > q3) {
         alerts.push({
@@ -216,7 +222,12 @@
   function analyze({ archive = [], liveSpins = [], layout = null, finalActivated = false, closersHit = 0 } = {}) {
     archive = archive || [];
     liveSpins = (liveSpins || []).map(toNum);
-    const archiveSeries = archive.map(r => (r.spins || []).map(toNum));
+    // Real archived SeriesDB records carry their spin order as
+    // `spinHistory` (see js/storage.js SeriesDB.saveSeries doc + the
+    // record built by SeriesEngine.getSeriesDataForSave) — `spins` only
+    // ever appears in synthetic/test fixtures. Fall back through both so
+    // this reads real archive data, not just test shapes.
+    const archiveSeries = archive.map(r => (r.spins || r.spinHistory || []).map(toNum));
     const allSeries = archiveSeries.concat([liveSpins]);
 
     const alerts = []
