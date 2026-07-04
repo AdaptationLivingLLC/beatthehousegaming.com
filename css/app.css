@@ -32,8 +32,8 @@
   --red: #c41200;
   --green-zero: #00733a;
   --black-num: #1a1a1a;
-  --felt-green: #0c5e1f;
-  --felt-dark: #0a4a17;
+  --felt: #104E85;
+  --felt-dark: #10107A;
   --final-green: #5EFF00;
   --blue: rgb(0, 140, 255);
   --yellow: rgb(255, 204, 26);
@@ -574,9 +574,9 @@ body {
 
 .rt-felt {
   background:
-    repeating-linear-gradient(45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.015) 1px, rgba(0,0,0,0) 2px),
-    repeating-linear-gradient(-45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.015) 1px, rgba(0,0,0,0) 2px),
-    linear-gradient(160deg, #0e7025 0%, #0a5a1c 30%, #0c6420 55%, #094e18 80%, #0b5c1e 100%);
+    repeating-linear-gradient(45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0) 2px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0) 2px),
+    var(--felt);
   border: 3px solid var(--accent);
   border-radius: 10px;
   padding: 4px;
@@ -591,17 +591,13 @@ body {
   position: relative;
 }
 
-/* Felt background per theme — the base rule above (green felt gradient)
-   is a fixed illustration, not derivable from a single var(), so it's
-   the one surface that gets a real per-theme override rather than a
-   token swap. Midnight: same idea, much darker/desaturated, low glow.
-   Paper: no felt illustration at all — flat surface + hairline border,
-   "deliberately boring, spreadsheet-looking from a distance." */
+/* Felt box-shadow "personality" per theme — Brandon's Task 21 spec locks
+   the felt COLOR itself to the same --felt/--felt-dark tokens in all
+   three themes (this is the table surface carve-out, not a re-themeable
+   surface), so these overrides only vary the glow, never the background:
+   Midnight keeps a lower-key glow, Paper stays close to none
+   ("deliberately boring, spreadsheet-looking from a distance"). */
 body[data-theme="midnight"] .rt-felt {
-  background:
-    repeating-linear-gradient(45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.02) 1px, rgba(0,0,0,0) 2px),
-    repeating-linear-gradient(-45deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0.02) 1px, rgba(0,0,0,0) 2px),
-    linear-gradient(160deg, #1a2230 0%, #12161f 50%, #161c28 100%);
   box-shadow:
     0 4px 20px rgba(0,0,0,0.6),
     0 0 8px rgba(var(--accent-rgb),0.12),
@@ -609,7 +605,6 @@ body[data-theme="midnight"] .rt-felt {
 }
 
 body[data-theme="paper"] .rt-felt {
-  background: var(--surface);
   box-shadow: none;
 }
 
@@ -630,8 +625,8 @@ body[data-theme="paper"] .rt-felt {
 
 .rt-zeros-col .rt-cell {
   flex: 1;
-  background: var(--cell-bg);
-  border: 1px solid rgba(var(--accent-rgb),0.4);
+  background: var(--felt);
+  border: 1px solid rgba(255,255,255,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -641,16 +636,18 @@ body[data-theme="paper"] .rt-felt {
   min-height: 84px;
 }
 
-/* 00 on top — rounded top corners, flat bottom */
+/* 0 on top — rounded top corners, flat bottom (Task 21: Brandon's spec
+   puts 0 on top / 00 on bottom, split from the reference image's single
+   spanning 0 cell) */
 .rt-zeros-col .rt-cell:first-child {
   border-radius: 4px 4px 0 0;
   border-bottom: none;
 }
 
-/* 0 on bottom — rounded bottom corners, shared border at center */
+/* 00 on bottom — rounded bottom corners, shared border at center */
 .rt-zeros-col .rt-cell:last-child {
   border-radius: 0 0 4px 4px;
-  border-top: 1px solid rgba(var(--accent-rgb),0.4);
+  border-top: 1px solid rgba(255,255,255,0.3);
 }
 
 .rt-zeros-col .rt-oval {
@@ -694,8 +691,8 @@ body[data-theme="paper"] .rt-felt {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--cell-bg);
-  border: 1px solid rgba(var(--accent-rgb),0.25);
+  background: var(--felt);
+  border: 1px solid rgba(255,255,255,0.25);
   border-radius: 3px;
   color: var(--muted);
   font-size: 0.6rem;
@@ -711,10 +708,11 @@ body[data-theme="paper"] .rt-felt {
   font-weight: 700;
 }
 
+/* Hit counter — bottom-right per the reference tracker layout (Task 21) */
 .rt-col-btn .rt-sb-hit {
   position: absolute;
   bottom: 2px;
-  left: 3px;
+  right: 3px;
   font-size: 0.65rem;
   font-family: monospace;
   font-weight: 900;
@@ -723,10 +721,11 @@ body[data-theme="paper"] .rt-felt {
   opacity: 1 !important;
 }
 
+/* Ago counter — top-left, opposite corner from the hit counter */
 .rt-col-btn .rt-sb-ago {
   position: absolute;
   top: 2px;
-  right: 3px;
+  left: 3px;
   font-size: 0.65rem;
   font-family: monospace;
   font-weight: 900;
@@ -744,8 +743,8 @@ body[data-theme="paper"] .rt-felt {
   align-items: center;
   justify-content: center;
   border-radius: 3px;
-  border: 1px solid rgba(var(--accent-rgb),0.2);
-  background: var(--cell-bg);
+  border: 1px solid rgba(255,255,255,0.2);
+  background: var(--felt);
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -772,12 +771,19 @@ body[data-theme="paper"] .rt-felt {
     0 0 1px rgba(0,0,0,0.6);
 }
 
-/* Flat theme-token fills (were literal 2-stop gradients) — these are the
-   actual red/black/green pocket colors, the single most "major surface"
-   spot in the app, so they have to retheme correctly across all three. */
+/* Flat theme-token fills — the actual red/black pocket colors, the
+   single most "major surface" spot in the app, so they have to retheme
+   correctly across all three. The 0/00 chip (still using the
+   `rt-oval-green` class name the JS assigns via colorForNumber's
+   'green' bucket) is NOT rendered green here — Brandon's project rule
+   is black/gold chrome, never green, and Task 21's blue-felt carve-out
+   only covers the table SURFACE (--felt/--felt-dark), not a new green
+   chip color. It's styled with --felt-dark instead: a dark navy chip
+   that reads clearly against the medium-blue --felt cell background.
+   Oval size and 3D shadow are unchanged from the red/black chips. */
 .rt-oval-red { background: var(--red); }
 .rt-oval-black { background: var(--black); }
-.rt-oval-green { background: var(--green); }
+.rt-oval-green { background: var(--felt-dark); }
 
 .rt-number {
   font-family: monospace;
@@ -788,11 +794,12 @@ body[data-theme="paper"] .rt-felt {
   text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
 
-/* ---- Hit Badge (bottom-left, between rectangle corner and oval) ---- */
+/* ---- Hit Badge (bottom-right — matches the reference tracker's
+   per-cell hit counter placement, Task 21) ---- */
 .rt-hits-badge {
   position: absolute;
   bottom: 2px;
-  left: 3px;
+  right: 3px;
   font-size: 0.7rem;
   font-weight: 900;
   font-family: monospace;
@@ -806,11 +813,11 @@ body[data-theme="paper"] .rt-felt {
   opacity: 1 !important;
 }
 
-/* ---- Ago Badge (top-right, opposite corner from hit) ---- */
+/* ---- Ago Badge (top-left, opposite corner from hit) ---- */
 .rt-ago-badge {
   position: absolute;
   top: 2px;
-  right: 3px;
+  left: 3px;
   font-size: 0.7rem;
   font-weight: 900;
   font-family: monospace;
@@ -902,8 +909,8 @@ body[data-theme="paper"] .rt-felt {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--cell-bg);
-  border: 1px solid rgba(var(--accent-rgb),0.2);
+  background: var(--felt-dark);
+  border: 1px solid rgba(255,255,255,0.2);
   border-radius: 3px;
   font-size: 0.6rem;
   color: var(--muted);
@@ -921,7 +928,7 @@ body[data-theme="paper"] .rt-felt {
 .rt-dozen-cell .rt-sb-hit {
   position: absolute;
   bottom: 2px;
-  left: 3px;
+  right: 3px;
   font-size: 0.65rem;
   font-family: monospace;
   font-weight: 900;
@@ -933,7 +940,7 @@ body[data-theme="paper"] .rt-felt {
 .rt-dozen-cell .rt-sb-ago {
   position: absolute;
   top: 2px;
-  right: 3px;
+  left: 3px;
   font-size: 0.65rem;
   font-family: monospace;
   font-weight: 900;
@@ -968,8 +975,8 @@ body[data-theme="paper"] .rt-felt {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--cell-bg);
-  border: 1px solid rgba(var(--accent-rgb),0.15);
+  background: var(--felt-dark);
+  border: 1px solid rgba(255,255,255,0.15);
   border-radius: 3px;
   font-size: 0.5rem;
   color: var(--muted);
@@ -989,7 +996,7 @@ body[data-theme="paper"] .rt-felt {
 .rt-band-cell .rt-sb-hit {
   position: absolute;
   bottom: 1px;
-  left: 3px;
+  right: 3px;
   font-size: 0.6rem;
   font-family: monospace;
   font-weight: 900;
@@ -1001,7 +1008,7 @@ body[data-theme="paper"] .rt-felt {
 .rt-band-cell .rt-sb-ago {
   position: absolute;
   top: 1px;
-  right: 3px;
+  left: 3px;
   font-size: 0.6rem;
   font-family: monospace;
   font-weight: 900;
@@ -1010,8 +1017,20 @@ body[data-theme="paper"] .rt-felt {
   opacity: 1 !important;
 }
 
-.rt-band-red { background: rgba(var(--red-rgb),0.6) !important; color: #fff !important; }
-.rt-band-black { background: var(--black) !important; color: #fff !important; }
+/* RED/BLACK outside bets render as a diamond shape sitting on the
+   --felt-dark cell (per the reference image), not a whole-cell tint —
+   see .rt-diamond below. The cell itself stays var(--felt-dark) like
+   its four siblings (1 to 18/EVEN/ODD/19 to 36). */
+.rt-diamond {
+  width: 68%;
+  height: 46%;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  /* Only an inset shadow — clip-path clips outer box-shadow away entirely,
+     so an outer drop-shadow here would just be dead/invisible CSS. */
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+.rt-diamond-red { background: var(--red); }
+.rt-diamond-black { background: var(--black); }
 
 /* ---- Corner Function Buttons (fill natural voids in table layout) ---- */
 .rt-corner-btn {

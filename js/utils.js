@@ -92,6 +92,12 @@ BTHG.TABLE_GRID = {
   dozens: ['1st 12', '2nd 12', '3rd 12'],
   bands:  ['1-18', 'EVEN', 'RED', 'BLACK', 'ODD', '19-36'],
   columns: ['2:1 Top', '2:1 Mid', '2:1 Bot'],
+  // Display-only text for the bands row (Task 21 tracker recreation
+  // wants "1 to 18" / "19 to 36" to match the reference image). The
+  // `bands` array above stays the raw SIDE_BETS keys engine state is
+  // keyed by — this map is purely what roulette-table.js renders into
+  // the cell's visible label span, never used for lookups.
+  bandDisplay: { '1-18': '1 to 18', '19-36': '19 to 36' },
 };
 
 // ---- Side Bet Predicates --------------------------------------

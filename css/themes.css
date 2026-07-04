@@ -22,6 +22,13 @@
      themes, so Paper keeps a dark neutral (var(--black)-derived)
      chip instead of full-white, to stay legible without having to
      re-color every chip label individually.
+   - --felt / --felt-dark: Task 21, Brandon-directed exact hex values
+     for the roulette table SURFACE ONLY (the one deliberate carve-out
+     of the "never non-black/gold backgrounds" rule). --felt is the
+     main board (number grid + zero column + 2to1 cells); --felt-dark
+     is the darker dozens/outside-bet row boxes. Same two values in
+     ALL three themes on purpose — the table felt is a fixed brand
+     surface, not something that re-themes with Casino/Midnight/Paper.
    ============================================================ */
 
 /* Casino = the original BTHG identity: black background, gold accent.
@@ -39,6 +46,8 @@ body[data-theme="casino"] {
   --red-rgb: 200, 54, 46;
   --gold-glow: rgba(212, 175, 55, 0.4);
   --cell-bg: rgba(20, 20, 20, 0.75);
+  --felt: #104E85;
+  --felt-dark: #10107A;
 }
 
 body[data-theme="midnight"] {
@@ -52,6 +61,8 @@ body[data-theme="midnight"] {
   --red-rgb: 160, 48, 48;
   --gold-glow: rgba(91, 140, 255, 0.22);
   --cell-bg: rgba(10, 12, 20, 0.65);
+  --felt: #104E85;
+  --felt-dark: #10107A;
 }
 
 body[data-theme="paper"] {
@@ -65,4 +76,6 @@ body[data-theme="paper"] {
   --red-rgb: 192, 57, 43;
   --gold-glow: rgba(0, 0, 0, 0.06);
   --cell-bg: rgba(58, 58, 58, 0.85);
+  --felt: #104E85;
+  --felt-dark: #10107A;
 }

@@ -205,7 +205,12 @@
 
     _buildZeros() {
       const col = document.getElementById('zeros-col');
-      [37, 0].forEach(num => {
+      // Brandon's Task 21 spec: 0 on the top half, 00 on the bottom half
+      // (the reference image's single spanning 0 cell, split for the
+      // American 0/00 wheel). Order here drives visual position via
+      // flex-direction:column + the :first-child/:last-child corner
+      // rounding in css/app.css.
+      [0, 37].forEach(num => {
         const cell = document.createElement('div');
         cell.className = 'rt-cell';
         cell.dataset.num = num;
@@ -253,11 +258,24 @@
         cell.id = `col-${colName}`;
         cell.innerHTML = `
           <span class="rt-sb-ago">0</span>
-          <span class="rt-sb-name">2:1</span>
+          <span class="rt-sb-name">2to1</span>
           <span class="rt-sb-hit">0</span>
         `;
         col.appendChild(cell);
       });
+    }
+
+    // Pure render helpers for the outside-bet row (Task 21) — deliberately
+    // not touching `this`/DOM (same pattern as _shouldTrackBet below) so
+    // they're headlessly testable: given a BTHG.TABLE_GRID.bands label,
+    // decide whether it renders as a diamond shape (RED/BLACK) and what
+    // text the other four cells display.
+    _isDiamondLabel(label) {
+      return label === 'RED' || label === 'BLACK';
+    }
+
+    _bandDisplayLabel(label) {
+      return BTHG.TABLE_GRID.bandDisplay[label] || label;
     }
 
     _buildDozens() {
@@ -302,15 +320,29 @@
       BTHG.TABLE_GRID.bands.forEach(label => {
         const cell = document.createElement('div');
         cell.className = 'rt-band-cell';
-        if (label === 'RED') cell.classList.add('rt-band-red');
-        if (label === 'BLACK') cell.classList.add('rt-band-black');
         cell.dataset.band = label;
+        // dataset.sbKey stays the raw SIDE_BETS key ('1-18'/'19-36'/etc.)
+        // — this is what _updateSideBets uses to look up
+        // engine.sideBetAgo/sideBetHits, so it must never change even
+        // though the visible label below is reworded for the reference
+        // image ("1 to 18" / "19 to 36" instead of "1-18" / "19-36").
         cell.dataset.sbKey = label;
-        cell.innerHTML = `
-          <span class="rt-sb-ago">0</span>
-          <span class="rt-sb-name">${label}</span>
-          <span class="rt-sb-hit">0</span>
-        `;
+        if (this._isDiamondLabel(label)) {
+          // Reference image draws these two as a red/black diamond, not
+          // a whole-cell color tint — see .rt-diamond in css/app.css.
+          const diamondClass = label === 'RED' ? 'rt-diamond-red' : 'rt-diamond-black';
+          cell.innerHTML = `
+            <span class="rt-sb-ago">0</span>
+            <div class="rt-diamond ${diamondClass}"></div>
+            <span class="rt-sb-hit">0</span>
+          `;
+        } else {
+          cell.innerHTML = `
+            <span class="rt-sb-ago">0</span>
+            <span class="rt-sb-name">${this._bandDisplayLabel(label)}</span>
+            <span class="rt-sb-hit">0</span>
+          `;
+        }
         row.appendChild(cell);
       });
 
