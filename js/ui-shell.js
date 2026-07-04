@@ -63,6 +63,26 @@
       document.body.dataset.theme = theme;
       return theme;
     },
+
+    // Toggles the intel feed panel out of the layout entirely (Brandon,
+    // 2026-07-04, from the floor: on tablet layout the feed owns two
+    // thirds of the screen; he needs a one-tap way to drop it and give
+    // the table the whole viewport). The #ss-signal chip keeps showing
+    // the BET/HOLD/STOP call while the panel is hidden. Persisted like
+    // the theme so it survives reload mid-session.
+    toggleFeed() {
+      const hidden = document.body.classList.toggle('feed-hidden');
+      const s = BTHG.Storage.Settings.load();
+      s.feedHidden = hidden;
+      BTHG.Storage.Settings.save(s);
+      return hidden;
+    },
+
+    restoreFeed() {
+      const s = BTHG.Storage.Settings.load();
+      document.body.classList.toggle('feed-hidden', !!s.feedHidden);
+      return !!s.feedHidden;
+    },
   };
 
   // ---- Boot wiring ----------------------------------------------
@@ -71,11 +91,17 @@
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('DOMContentLoaded', () => {
       UI.restoreTheme();
+      UI.restoreFeed();
       UI.applyLayout();
       window.addEventListener('resize', () => UI.applyLayout());
       window.addEventListener('orientationchange', () => UI.applyLayout());
       const btn = document.getElementById('btn-theme');
       if (btn) btn.addEventListener('click', () => UI.cycleTheme());
+      const feedBtn = document.getElementById('btn-feed');
+      if (feedBtn) feedBtn.addEventListener('click', () => {
+        const hidden = UI.toggleFeed();
+        feedBtn.title = hidden ? 'Show insight feed' : 'Hide insight feed';
+      });
     });
   }
 

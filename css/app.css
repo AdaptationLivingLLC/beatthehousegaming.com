@@ -2955,3 +2955,18 @@ body.layout-tablet #intel-feed,
 body.layout-desktop #intel-feed {
   display: block;
 }
+
+/* ---- Feed hidden (#btn-feed, ui-shell toggleFeed) ----
+   Brandon, 2026-07-04, from the floor: on tablet layout the feed owns
+   everything below the top-third table. body.feed-hidden collapses the
+   feed's grid track entirely so the table takes the full viewport; the
+   #ss-signal chip still mirrors the BET/HOLD/STOP call. */
+body.feed-hidden #intel-feed {
+  display: none !important;
+}
+body.feed-hidden.layout-tablet #app-root {
+  grid-template-rows: 1fr;
+}
+body.feed-hidden.layout-desktop #app-root {
+  grid-template-columns: 1fr;
+}
