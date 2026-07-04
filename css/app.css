@@ -1533,6 +1533,62 @@ body[data-theme="paper"] .rt-felt {
   font-family: monospace;
 }
 
+/* Table limit fields (Task 9) */
+.br-limits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.br-limit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+.br-limit-label input {
+  padding: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1rem;
+  width: 100%;
+}
+
+.br-limits-msg {
+  color: var(--loss, #ff6666);
+  font-size: 0.75rem;
+  min-height: 1em;
+  margin-bottom: 0.6rem;
+}
+
+/* Recommended start / betting path projection (Task 9) */
+.br-projection {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.br-projection-title {
+  color: var(--accent);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.br-projection-line {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 0.4rem 0;
+}
+
 .chip-stack {
   display: flex;
   gap: 4px;

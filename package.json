@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vercel dev",
     "migrate": "node scripts/migrate.mjs",
-    "test": "node tests/test-all.cjs && node tests/test-machine-profile.mjs && node tests/test-trinity.mjs && node tests/test-series-fixes.mjs && node tests/test-series-persistence.mjs && node tests/test-pattern-engine.mjs && node tests/test-ui-shell.mjs && node tests/test-intel-feed.mjs",
+    "test": "node tests/test-all.cjs && node tests/test-machine-profile.mjs && node tests/test-trinity.mjs && node tests/test-series-fixes.mjs && node tests/test-series-persistence.mjs && node tests/test-pattern-engine.mjs && node tests/test-ui-shell.mjs && node tests/test-intel-feed.mjs && node tests/test-bankroll-reco.mjs",
     "simulate": "node tests/simulate-trinity.mjs"
   },
   "dependencies": {

@@ -15,7 +15,25 @@
 (function() {
   const BTHG = window.BTHG;
 
-  let engine, bankroll, fusion, predictor, tableUI;
+  let engine, bankroll, fusion, predictor, tableUI, trinityEngine;
+
+  // Task 9: keep the module-level TrinityEngine in sync with the active
+  // machine profile's table limits. Cheap to rebuild on every call (this
+  // engine only ever holds config — minUnit/maxUnit/floor — for display;
+  // the live "how deep is this cycle right now" numbers shown in the
+  // Bankroll panel come from replaying the in-progress SeriesEngine's own
+  // history via BTHG.Bankroll.replaySeriesCycle, not from mutating this
+  // instance spin by spin). Returns the active profile, or null if none
+  // exists / it has no limits set yet.
+  function syncTrinityEngineFromProfile() {
+    const profile = BTHG.MachineProfiles.getActive();
+    if (profile && profile.minUnit != null && profile.maxUnit != null) {
+      trinityEngine = new BTHG.TrinityEngine({ minUnit: profile.minUnit, maxUnit: profile.maxUnit });
+      return profile;
+    }
+    trinityEngine = null;
+    return profile || null;
+  }
 
   async function init() {
     // ACCESS IS OPEN — Stripe is disconnected, so there is NO paywall gate and
@@ -1128,13 +1146,16 @@
   // ============================================================
   function showBankrollPanel() {
     const state = bankroll.getState();
+    const activeProfile = syncTrinityEngineFromProfile();
+    const minUnitVal = activeProfile && activeProfile.minUnit != null ? activeProfile.minUnit : '';
+    const maxUnitVal = activeProfile && activeProfile.maxUnit != null ? activeProfile.maxUnit : '';
     const overlay = document.createElement('div');
     overlay.className = 'rt-overlay rt-overlay-visible';
     overlay.innerHTML = `
       <div class="rt-overlay-content bankroll-panel">
         <h2 style="color:#d4af37;"><i class="fas fa-dollar-sign"></i> Bankroll & Trinity</h2>
         <p style="color:#888;font-size:0.8rem;margin-bottom:1rem;">Trinity is a controlled doubling progression. Bet stays at 1x for the first 3 misses, then doubles: 2x (3-4 misses), 4x (5-6), 8x (7+). Resets on any hit.</p>
-        <div class="br-config" style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.6rem;align-items:end;margin-bottom:1rem;">
+        <div class="br-config" style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.6rem;align-items:end;margin-bottom:0.6rem;">
           <label style="display:flex;flex-direction:column;gap:0.3rem;color:#aaa;font-size:0.72rem;letter-spacing:0.05em;">BANKROLL ($)
             <input type="number" id="br-set-bankroll" value="${bankroll.totalBankroll}" min="0" step="1" inputmode="decimal" style="padding:0.55rem;background:#111;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;width:100%;">
           </label>
@@ -1143,6 +1164,15 @@
           </label>
           <button id="br-apply" class="btn-gold" style="padding:0.6rem 1.1rem;white-space:nowrap;">Apply</button>
         </div>
+        <div class="br-limits">
+          <label class="br-limit-label">Table minimum betting unit
+            <input type="number" id="br-min-unit" value="${minUnitVal}" min="0.25" max="1500" step="0.25" inputmode="decimal" placeholder="e.g. 5">
+          </label>
+          <label class="br-limit-label">Table maximum betting unit
+            <input type="number" id="br-max-unit" value="${maxUnitVal}" min="0.25" max="1500" step="0.25" inputmode="decimal" placeholder="e.g. 500">
+          </label>
+        </div>
+        <div id="br-limits-msg" class="br-limits-msg"></div>
         <div class="br-stats">
           <div class="br-stat"><span class="br-label">Bankroll</span><span class="br-value" style="color:#5EFF00;">${BTHG.formatMoney(state.bankroll)}</span></div>
           <div class="br-stat"><span class="br-label">Session P&L</span><span class="br-value" style="color:${state.sessionPnL >= 0 ? '#5EFF00' : '#ff3333'};">${state.sessionPnL >= 0 ? '+' : '-'}${BTHG.formatMoney(Math.abs(state.sessionPnL))}</span></div>
@@ -1152,6 +1182,14 @@
           <div class="br-stat"><span class="br-label">Wins/Losses</span><span class="br-value">${state.winCount}/${state.lossCount}</span></div>
           <div class="br-stat"><span class="br-label">Miss Streak</span><span class="br-value">${state.missStreak}</span></div>
           <div class="br-stat"><span class="br-label">Total Wagered</span><span class="br-value">$${state.totalWagered.toFixed(2)}</span></div>
+        </div>
+
+        <div class="br-projection" id="br-projection">
+          <h4 class="br-projection-title">Recommended Start &amp; Betting Path</h4>
+          <p class="br-projection-line" id="br-projection-reco">Loading recommendation...</p>
+          <p class="br-projection-line" id="br-projection-floor"></p>
+          <p class="br-projection-line" id="br-projection-path"></p>
+          <p class="br-projection-line" id="br-projection-live"></p>
         </div>
 
         <div class="br-chips" style="margin-top:1rem;">
@@ -1169,13 +1207,98 @@
 
     document.getElementById('app-root').appendChild(overlay);
 
+    // Recommended start + betting path projection (Task 9). Needs the
+    // archived series list, which is IndexedDB/async, so it fills in
+    // after the panel is already on screen — same pattern as the Data
+    // Inspector's Series tab (#di-series-list) just above.
+    fillProjection();
+
+    function fillProjection() {
+      const machineId = BTHG._currentMachineId || 'default';
+      BTHG.Storage.SeriesDB.getSeriesByMachine(machineId).then(archive => {
+        if (!overlay.isConnected) return; // panel was closed before this resolved
+        const profile = BTHG.MachineProfiles.getActive();
+        const minUnit = profile && profile.minUnit != null ? profile.minUnit : null;
+        const reco = BTHG.Bankroll.recommendStart({ minUnit, archive });
+
+        let live = { active: !!(engine && engine.finalActivated) };
+        if (live.active && minUnit) {
+          const cyc = BTHG.Bankroll.replaySeriesCycle({
+            spinHistory: engine.history, entrySpin: engine.entrySpin, finalEight: engine.finalEight, minUnit,
+          });
+          if (cyc) {
+            live.currentLevel = cyc.currentLevel;
+            live.currentSpent = cyc.currentSpent;
+            live.worstDepth = reco.worstDepth;
+            live.worstSpend = reco.worstSpend;
+          } else {
+            live.active = false; // Final 8 active but no closing-phase spins yet
+          }
+        }
+
+        const lines = BTHG.Bankroll.projectionLines({
+          minUnit, seriesAverage: engine ? engine.seriesAverage : 0, live,
+        });
+
+        const recoEl = overlay.querySelector('#br-projection-reco');
+        const floorEl = overlay.querySelector('#br-projection-floor');
+        const pathEl = overlay.querySelector('#br-projection-path');
+        const liveEl = overlay.querySelector('#br-projection-live');
+        if (recoEl) {
+          recoEl.textContent = reco.amount != null
+            ? `Recommended start: ${BTHG.formatMoney(reco.amount)}. ${reco.explanation}`
+            : reco.explanation;
+        }
+        if (floorEl) floorEl.textContent = lines.guaranteedMinimum;
+        if (pathEl) pathEl.textContent = lines.path;
+        if (liveEl) liveEl.textContent = lines.live || '';
+      }).catch(e => {
+        console.warn('Failed to compute bankroll projection:', e);
+      });
+    }
+
     overlay.querySelector('#br-apply').addEventListener('click', () => {
+      // Table limits are validated and saved FIRST, and the whole Apply
+      // is all-or-nothing on them: an invalid limit shows its message and
+      // stops right there (nothing else applied, panel stays open) so the
+      // user can fix it and click Apply again without losing what they
+      // already typed in the bankroll/bet fields.
+      const minUnitRaw = document.getElementById('br-min-unit').value.trim();
+      const maxUnitRaw = document.getElementById('br-max-unit').value.trim();
+      const limitsMsg = document.getElementById('br-limits-msg');
+      limitsMsg.textContent = '';
+
+      if (minUnitRaw !== '' || maxUnitRaw !== '') {
+        if (minUnitRaw === '' || maxUnitRaw === '') {
+          limitsMsg.textContent = 'Enter both the table minimum and table maximum betting unit.';
+          return;
+        }
+        const minUnit = parseFloat(minUnitRaw);
+        const maxUnit = parseFloat(maxUnitRaw);
+        if (isNaN(minUnit) || isNaN(maxUnit)) {
+          limitsMsg.textContent = 'Table limits must be numbers.';
+          return;
+        }
+        try {
+          const activeProfile = BTHG.MachineProfiles.getActive();
+          const profileToSave = BTHG.Bankroll.resolveProfileForLimits(activeProfile, {
+            minUnit, maxUnit,
+            name: BTHG._currentMachineId || 'Table 1',
+            casino: BTHG._currentCasino || 'Unknown Casino',
+          });
+          const saved = BTHG.MachineProfiles.save(profileToSave);
+          BTHG.MachineProfiles.setActive(saved.id);
+          syncTrinityEngineFromProfile();
+        } catch (e) {
+          limitsMsg.textContent = e.message;
+          return;
+        }
+      }
+
       const newBank = parseFloat(document.getElementById('br-set-bankroll').value);
       const newBet = parseFloat(document.getElementById('br-set-bet').value);
       if (!isNaN(newBank) && newBank >= 0) {
-        bankroll.totalBankroll = newBank;
-        bankroll.sessionStartBankroll = newBank; // re-baseline session P&L to the new bankroll
-        bankroll.peakBankroll = newBank;
+        bankroll.setBankroll(newBank); // re-baselines session start + peak too — never shows a phantom loss
       }
       if (!isNaN(newBet) && newBet > 0) {
         bankroll.baseBet = newBet;
