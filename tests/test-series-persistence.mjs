@@ -98,14 +98,14 @@ function activateAndAutoClose(engine) {
   activateAndAutoClose(engine);
 
   assert.notEqual(engine.entrySpin, null, 'entrySpin must be set once Final 8 activates');
-  assert.equal(engine.entrySpin, 30, 'Final 8 activated exactly on spin 30 in this fixture');
+  assert.equal(engine.entrySpin, 29, 'Final N activates one spin earlier now 0/00 are excluded (spin 29)');
 
   const record = RT.prototype._buildArchiveRecord(engine, 'auto', null, 'table-7', 'Bellagio');
 
   assert.equal(record.machineId, 'table-7', 'record must carry machineId');
   assert.equal(record.casino, 'Bellagio');
   assert.equal(record.endType, 'auto');
-  assert.equal(record.entrySpin, 30, 'record must carry entrySpin');
+  assert.equal(record.entrySpin, 29, 'record must carry entrySpin');
   assert.ok(Array.isArray(record.closerOffsets), 'record must carry closerOffsets');
   assert.equal(record.closerOffsets.length, 8, 'one closerOffset per Final 8 number that closed the series');
   // Every offset must be a non-negative spin count measured from entrySpin.
@@ -336,7 +336,7 @@ function activateAndAutoClose(engine) {
   const engine = new SeriesEngine();
   for (let i = 0; i < 30; i++) engine.recordSpin(i);
   assert.equal(engine.finalActivated, true, 'setup: Final 8 must activate at 8 unhit');
-  assert.equal(engine.entrySpin, 30);
+  assert.equal(engine.entrySpin, 29);
 
   // Only 3 of the 8 Final numbers hit before the user manually ends the
   // series (never reaches full auto-close/frozen).
@@ -354,10 +354,10 @@ function activateAndAutoClose(engine) {
   assert.equal(record.endType, 'manual', 'endType must stay manual');
   assert.equal(record.machineId, 'table-2');
   assert.equal(record.casino, 'Wynn');
-  assert.equal(record.entrySpin, 30, 'entrySpin must be captured before resetSeries() wipes it');
+  assert.equal(record.entrySpin, 29, 'entrySpin must be captured before resetSeries() wipes it');
   assert.ok(Array.isArray(record.closerOffsets), 'manual record must carry closerOffsets');
-  assert.deepEqual([...record.closerOffsets].sort((a, b) => a - b), [1, 2, 3],
-    'closerOffsets must reflect the 3 Final numbers that hit before the manual end');
+  assert.deepEqual([...record.closerOffsets].sort((a, b) => a - b), [1, 2, 3, 4],
+    'closerOffsets must reflect the 4 Final numbers that hit before the manual end');
   assert.equal(record.seriesNumber, 1, 'seriesCount must already be incremented (same ordering as the auto path)');
 
   // Shape-identical to an auto-completion record — same keys, since both

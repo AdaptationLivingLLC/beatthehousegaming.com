@@ -253,13 +253,22 @@ for (let i = 0; i < 30; i++) {
 assert(eng.getUniqueHitCount() === 30, '30 unique numbers hit');
 assert(eng.getRemainingCount() === 8, '8 remaining');
 assert(eng.finalActivated === true, 'Final 8 activated with 8 remaining');
-assert(eng.finalEight.length === 8, 'Final 8 array has 8 numbers');
-assert(finalActivatedAt === 30, 'Final 8 activated on spin 30');
+// Brandon 2026-07-04: 0 and 00 (37) are covered separately and never occupy
+// a Final N slot. This run hits 0..29, which includes 0 (a zero) plus reals
+// 1..29 (29 reals). The Final N is the last 8 REAL numbers still unhit —
+// [29..36] — activating one spin earlier (when 28 reals are hit, i.e. spin
+// 29) than the old zero-counting logic did, and NOT containing 37/00.
+assert(eng.finalEight.length === 8, 'Final N array has 8 REAL numbers');
+assert(finalActivatedAt === 29, 'Final N activated on spin 29 (8th-from-last real number)');
+assert(!eng.finalEight.includes(0) && !eng.finalEight.includes(37), 'Final N excludes 0 and 00');
 
-// Verify Final 8 contains the unhit numbers (30-37)
-for (let i = 30; i <= 37; i++) {
-  assert(eng.finalEight.includes(i), `Final 8 includes unhit number ${i}`);
+// Verify Final N contains the unhit REAL numbers (29-36), not 37/00
+for (let i = 29; i <= 36; i++) {
+  assert(eng.finalEight.includes(i), `Final N includes unhit real number ${i}`);
 }
+// 0 and 00 are still covered — via getTrinityNumbers, on top of the Final N
+const cov = eng.getTrinityNumbers();
+assert(cov.includes(0) && cov.includes(37), 'Coverage still includes 0 and 00 separately');
 
 // ============================================================
 // TEST 4: Series Completion
@@ -617,10 +626,11 @@ assert(testEngine.finalActivated === true, 'E2E: Final 8 activated');
 assert(testEngine.finalEight.length === 8, 'E2E: 8 numbers in Final 8');
 assert(testEngine.getRemainingCount() === 8, 'E2E: 8 remaining');
 
-// Final 8 should be 30,31,32,33,34,35,36,37
-for (let i = 30; i <= 37; i++) {
-  assert(testEngine.finalEight.includes(i), `E2E: Final 8 contains ${i}`);
+// Final N is the last 8 unhit REAL numbers (29..36); 0/00 covered separately
+for (let i = 29; i <= 36; i++) {
+  assert(testEngine.finalEight.includes(i), `E2E: Final N contains real ${i}`);
 }
+assert(!testEngine.finalEight.includes(37), 'E2E: Final N excludes 00');
 
 // Trinity numbers include 0 and 37 (zeros always covered)
 const trinityNums = testEngine.getTrinityNumbers();

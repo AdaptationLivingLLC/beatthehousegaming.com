@@ -879,6 +879,16 @@ body[data-theme="paper"] .rt-felt {
   box-shadow: 0 0 5px rgba(var(--win-rgb),0.3);
 }
 
+/* On-deck "next best" numbers (Brandon, 2026-07-04): the coldest real
+   numbers not yet in the Final set — bet these next once current members
+   hit. Blue tint + blue border so they read as a distinct on-deck tier
+   next to the gold/green Final highlight, never mistaken for it. Uses the
+   existing --blue token (defined in all themes). */
+.rt-next-best {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 5px rgba(0,140,255,0.35), inset 0 0 14px rgba(0,140,255,0.18);
+}
+
 /* Most recently hit Final 8 number on grid — gold pulsing glow */
 .rt-f8-just-hit-cell {
   border-color: var(--accent) !important;

@@ -29,6 +29,7 @@
       this.predictor = predictor;
       this._listeners = [];
       this.bettingEnabled = false;
+      this._nextBestSet = new Set();
     }
 
     render() {
@@ -833,6 +834,11 @@
     }
 
     _updateNumbers() {
+      // Recompute the on-deck set once per render (getNextBestNumbers is a
+      // cheap sort). Only meaningful once enough numbers have been tracked
+      // for a cold cluster to exist; before that it just tints the current
+      // coldest and is harmless.
+      this._nextBestSet = new Set(this.engine.getNextBestNumbers(this.engine.finalTargetCount));
       for (const num of this.engine.numbers) {
         const cell = this.container.querySelector(`.rt-cell[data-num="${num.value}"]`);
         if (!cell) continue;
@@ -857,6 +863,12 @@
         // Final 8 highlight
         const inFinal = this.engine.finalEight.includes(num.value);
         cell.classList.toggle('rt-in-final', inFinal);
+
+        // On-deck "next best" tint (Brandon, 2026-07-04): the coldest real
+        // numbers not yet in the Final set — what to bet next once current
+        // members hit. Blue so it reads clearly against the gold Final tint.
+        // Computed once per render below and toggled here.
+        cell.classList.toggle('rt-next-best', this._nextBestSet.has(num.value) && !inFinal);
 
         // Most recent Final 8 hit highlight
         const isF8JustHit = this.engine.finalEightJustHit.has(num.value);

@@ -204,23 +204,33 @@
       // numbers the user should not bet back onto the board. If none remain
       // unhit, return null and coverage simply shrinks as the series completes.
       const unhit = this.numbers
-        .filter(n => n.hits === 0 && !this.finalEight.includes(n.value))
+        .filter(n => n.hits === 0 && n.value !== 0 && n.value !== 37 && !this.finalEight.includes(n.value))
         .sort((a, b) => b.ago - a.ago);
       return unhit.length > 0 ? unhit[0].value : null;
     }
 
     _evaluateState() {
       const unhit = this.numbers.filter(n => n.hits === 0);
+      // 0 and 00 (37) are ALWAYS covered separately (see getTrinityNumbers),
+      // so they must never consume a Final 8 slot. The Final N is the last N
+      // REAL (non-zero) numbers still unhit; when 0/00 have not come up yet
+      // they are covered on top of that N, not counted inside it. (Brandon,
+      // 2026-07-04: "when 0 or 00 have not been hit they are not part of the
+      // final 8 logic, it would be the next number on the table that has not
+      // been hit yet. The zeros are already going to get covered no matter
+      // what.")
+      const unhitReal = unhit.filter(n => n.value !== 0 && n.value !== 37);
       const target = this.finalTargetCount;
 
-      if (unhit.length === target + 1 && !this.finalActivated) {
-        this._emit('finalWarning', { count: unhit.length });
+      if (unhitReal.length === target + 1 && !this.finalActivated) {
+        this._emit('finalWarning', { count: unhitReal.length });
       }
 
-      if (unhit.length <= target && !this.finalActivated) {
-        // Activate Final 8
+      if (unhitReal.length <= target && !this.finalActivated) {
+        // Activate Final N — only the real unhit numbers; 0/00 are covered
+        // on top of these, never members of the set.
         this.finalActivated = true;
-        this.finalEight = unhit.map(n => n.value);
+        this.finalEight = unhitReal.map(n => n.value);
         this.finalEightAges = {};
         this.finalEightFirstHit.clear();
         this.finalEightFirstHitSpins = {};
@@ -316,6 +326,21 @@
       if (!targets.includes(0)) targets.push(0);
       if (!targets.includes(37)) targets.push(37);
       return targets.sort((a, b) => a - b);
+    }
+
+    // The on-deck set: the next `count` coldest REAL numbers (longest since a
+    // hit) that are NOT already in the Final set and are not 0/00. These are
+    // the numbers most likely to enter the Final N next as current members
+    // hit and age off — "once the current ones hit, these are next" (Brandon,
+    // 2026-07-04). Returned coldest first. Meaningful while tracking (the
+    // emerging cold cluster) and during the closing phase (replacements).
+    getNextBestNumbers(count) {
+      const n = count || this.finalTargetCount;
+      return this.numbers
+        .filter(x => x.value !== 0 && x.value !== 37 && !this.finalEight.includes(x.value))
+        .sort((a, b) => b.ago - a.ago)
+        .slice(0, n)
+        .map(x => x.value);
     }
 
     getTrinityTotalBet(baseBet) {

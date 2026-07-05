@@ -47,11 +47,15 @@ const BTHG = loadBTHG(['js/utils.js', 'js/series-engine.js']);
 // spin the remaining 8 to auto-close the series. ------------------------
 function activateAndAutoClose(engine) {
   for (let i = 0; i < 30; i++) engine.recordSpin(i);
-  assert.equal(engine.finalActivated, true, 'setup: Final 8 must activate once unhit count reaches 8');
+  assert.equal(engine.finalActivated, true, 'setup: Final N must activate once unhit REAL count reaches 8');
+  // Brandon 2026-07-04: 0/00 are covered separately, never Final N members.
+  // Hitting 0..29 leaves reals 30..36 (7) + 00 unhit; activation fires one
+  // spin earlier (at 28 reals hit) with the last 8 reals [29..36], and 29 is
+  // then hit within the loop but not yet aged out, so it stays seeded.
   assert.deepEqual(
     [...engine.finalEight].sort((a, b) => a - b),
-    [30, 31, 32, 33, 34, 35, 36, 37],
-    'setup: finalEight must be seeded with exactly the unhit numbers'
+    [29, 30, 31, 32, 33, 34, 35, 36],
+    'setup: finalEight seeded with the last 8 REAL numbers, no 00'
   );
 
   let agesWerePopulated = false;
