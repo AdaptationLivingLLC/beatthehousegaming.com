@@ -3091,3 +3091,31 @@ body.feed-hidden.layout-desktop #app-root {
 .sec-predict-out.sec-muted { color: var(--muted); font-size: 0.85rem; }
 .sec-history { margin-top: 0.75rem; max-height: 160px; overflow-y: auto; }
 .sec-row { font-size: 0.8rem; color: var(--muted); padding: 0.2rem 0; font-variant-numeric: tabular-nums; }
+
+/* ---- Persistent number ticker under the table (Task 18) ---- */
+.rt-number-ticker {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 620px;
+  margin: 3px auto 0;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+.rt-number-ticker::-webkit-scrollbar { display: none; }
+.rt-tick {
+  flex: 0 0 auto;
+  min-width: 16px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  border-radius: 2px;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.rt-tick-red { background: var(--red); }
+.rt-tick-black { background: var(--black-num, #1a1a1a); }
+.rt-tick-green { background: var(--green-zero, #00733a); }

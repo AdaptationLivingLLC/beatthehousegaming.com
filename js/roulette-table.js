@@ -156,6 +156,12 @@
                 <div class="rt-bands-row" id="bands-row"></div>
               </div>
             </div>
+            <!-- Persistent number ticker (Brandon, Task 18): a thin row
+                 directly under the table, exact table width, every number
+                 tapped on this machine across consecutive series in order,
+                 newest on the right. Resets only when the machine changes
+                 (a genuinely fresh wheel). -->
+            <div id="number-ticker" class="rt-number-ticker" aria-label="spin history"></div>
             <div class="rt-extra-btns">
               <button class="rt-corner-btn rt-extra-btn" id="btn-bankroll"><i class="fas fa-wallet"></i><span>Bankroll</span></button>
               <button class="rt-corner-btn rt-extra-btn" id="btn-sector"><i class="fas fa-bullseye"></i><span>Sector</span></button>
@@ -1131,11 +1137,30 @@
       this._updateSeriesIntel();
     }
 
+    // Persistent number ticker (Task 18): render the machine's spin tape
+    // as a thin row of colored chips under the table, newest on the right.
+    // Reads the live engine history (which already spans consecutive series
+    // within the sitting); a genuinely fresh wheel is a different machine
+    // and starts empty. Capped at the last 120 chips for performance; the
+    // strip scrolls to the newest.
+    _updateTicker() {
+      const el = document.getElementById('number-ticker');
+      if (!el) return;
+      const hist = this.engine.history || [];
+      const recent = hist.slice(-120);
+      el.innerHTML = recent.map(n => {
+        const color = BTHG.colorForNumber(n);
+        return `<span class="rt-tick rt-tick-${color}">${BTHG.displayNumber(n)}</span>`;
+      }).join('');
+      el.scrollLeft = el.scrollWidth; // keep newest in view
+    }
+
     _updateNumbers() {
       // Recompute the on-deck set once per render (getNextBestNumbers is a
       // cheap sort). Only meaningful once enough numbers have been tracked
       // for a cold cluster to exist; before that it just tints the current
       // coldest and is harmless.
+      this._updateTicker();
       this._nextBestSet = new Set(this.engine.getNextBestNumbers(this.engine.finalTargetCount));
       for (const num of this.engine.numbers) {
         const cell = this.container.querySelector(`.rt-cell[data-num="${num.value}"]`);
