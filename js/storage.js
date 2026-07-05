@@ -391,11 +391,17 @@
         if (spin.timestamp > tables[id].lastUsed) tables[id].lastUsed = spin.timestamp;
       }
 
-      // Scan series
+      // Scan series. Count ONLY real completions (auto/manual) so this card
+      // matches the table's "Completed Series" and Series Average, which use
+      // the same filter (js/app.js loadPreviousTable). "Save & Keep Counting"
+      // writes a snapshot record that is NOT a finished series — counting it
+      // here made the card say 5 while the table said 4 (Brandon, 2026-07-05).
+      // A snapshot's casino/lastUsed are still valid metadata, so those are
+      // read regardless.
       for (const s of series) {
         const id = s.machineId || 'default';
         if (!tables[id]) tables[id] = { machineId: id, casino: '', totalSpins: 0, seriesCount: 0, lastUsed: 0, hasCal: false };
-        tables[id].seriesCount++;
+        if (s.endType === 'auto' || s.endType === 'manual') tables[id].seriesCount++;
         if (s.casino) tables[id].casino = s.casino;
         if (s.timestamp > tables[id].lastUsed) tables[id].lastUsed = s.timestamp;
       }
