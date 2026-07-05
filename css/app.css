@@ -3020,3 +3020,18 @@ body.feed-hidden.layout-desktop #app-root {
   min-height: 32px;
 }
 .if-collapse:active { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Real Time switch states (Brandon, 2026-07-05) ---- */
+.ss-btn-rt-on { color: var(--win); }
+.ss-btn-rt-on i { text-shadow: 0 0 6px rgba(var(--win-rgb),0.5); }
+.ss-btn-rt-off { color: var(--muted); }
+
+/* Cycle-timing readout under the physics grid */
+.rt-timing-readout {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}

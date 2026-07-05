@@ -110,6 +110,10 @@
              gets the whole viewport; #ss-signal above keeps the BET/HOLD/
              STOP call visible while the panel is hidden. Persisted via
              Storage.Settings (ui-shell toggleFeed/restoreFeed). -->
+        <!-- Real Time switch: ON = taps are live ball-drop moments (feeds
+             the cycle-timing engine); OFF = back-filling historical numbers
+             (timestamps ignored for cadence). Default ON. -->
+        <button id="btn-realtime" class="ss-btn ss-btn-rt-on" type="button" title="Real Time: ON (taps are live drops)"><i class="fas fa-bolt"></i></button>
         <button id="btn-feed" class="ss-btn" type="button" title="Hide insight feed"><i class="fas fa-list"></i></button>
         <button id="btn-theme" class="ss-btn" type="button" title="Switch theme"><i class="fas fa-palette"></i></button>
     </div>
@@ -145,6 +149,7 @@
     <script src="js/trinity.js"></script>
     <script src="js/pattern-engine.js"></script>
     <script src="js/cycle-watch.js"></script>
+    <script src="js/timing-engine.js"></script>
     <script src="js/intel-feed.js"></script>
     <script src="js/paywall.js"></script>
     <script src="js/admin-keygen.js"></script>

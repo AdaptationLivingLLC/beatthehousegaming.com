@@ -464,11 +464,18 @@
         this.fusion.learnOffset(this.predictor.lastResult.dropIndex, num);
       }
 
-      // Persist to IndexedDB
+      // Persist to IndexedDB. The `realTime` flag (additive, defaults to
+      // true for older records that predate it) marks whether this tap was
+      // an actual ball-drop moment (Real Time ON, tapped live at the wheel)
+      // or historical back-fill (Real Time OFF). Only realTime taps carry a
+      // meaningful timestamp for the cycle-cadence engine — back-fill taps
+      // are seconds apart and would poison the ~50s cadence. Number/order/
+      // droughts/coverage are recorded identically either way.
       BTHG.Storage.SpinDB.addSpin({
         number: num,
         timestamp: Date.now(),
         machineId: BTHG._currentMachineId || 'default',
+        realTime: BTHG._realTime !== false,
       });
 
       // Flash effect
@@ -528,8 +535,42 @@
         BTHG.Storage.SpinDB.getSpinsByMachine(machineId).then(tape => {
           const cw = BTHG.CycleWatch.analyze({ tape, nowLive: Date.now() });
           cw.alerts.forEach(a => BTHG.IntelFeed.push(a));
+
+          // Cycle-timing engine (own try/catch so a failure here can never
+          // break the cycle-watch/pattern paths). Runs on the CURRENT
+          // sitting only (last splitSittings segment), reading each spin's
+          // realTime flag to learn the machine's ~50s drop cadence from
+          // live taps and ignore back-fill.
+          try {
+            if (BTHG.TimingEngine && BTHG.CycleWatch.splitSittings) {
+              const sittings = BTHG.CycleWatch.splitSittings(tape);
+              const current = sittings.length ? sittings[sittings.length - 1] : [];
+              const te = BTHG.TimingEngine.analyze({ sitting: current, nowLive: Date.now() });
+              this._timing = te;
+              if (te.alert) BTHG.IntelFeed.push(te.alert);
+              this._renderTimingReadout(te);
+            }
+          } catch (e) { console.warn('TimingEngine update failed:', e); }
         }).catch(e => console.warn('CycleWatch update failed:', e));
       }
+    }
+
+    // Paints the cycle-timing readout into the Physics Engine panel's
+    // timing slot if present (id "timing-readout"); otherwise a no-op, so
+    // this is safe on layouts that do not render that slot.
+    _renderTimingReadout(te) {
+      const el = document.getElementById('timing-readout');
+      if (!el) return;
+      if (!te || te.cycleSec == null) {
+        el.textContent = te && te.sampleCount
+          ? 'Timing: building (need more live drops)'
+          : 'Timing: switch Real Time ON and tap each drop';
+        return;
+      }
+      const sec = te.cycleSec.toFixed(1);
+      const next = te.secToNextDrop != null ? Math.max(0, Math.round(te.secToNextDrop)) : null;
+      const nextTxt = next != null ? `, next drop in ~${next}s` : '';
+      el.textContent = `Cycle ~${sec}s (${te.confidence.label}, n=${te.sampleCount})${nextTxt}`;
     }
 
     _flashCell(num) {
@@ -1321,7 +1362,11 @@
       h += `<div class="rt-phys-stat"><span class="rt-phys-label">CONDITION</span><span class="rt-phys-value" style="color:${f.getWheelCondition() === 'stable' ? '#5EFF00' : f.getWheelCondition() === 'caution' ? '#FFCC1A' : '#ff3333'};">${f.getWheelCondition().toUpperCase()}</span><span class="rt-phys-sub">stability</span></div>`;
       h += `<div class="rt-phys-stat"><span class="rt-phys-label">SESSIONS</span><span class="rt-phys-value">${f.calibrationCount}</span><span class="rt-phys-sub">calibrations</span></div>`;
       h += '</div>';
+      // Cycle-timing readout: learned live from the drop cadence, separate
+      // from the ball-physics tiers above. Filled by _renderTimingReadout.
+      h += '<div id="timing-readout" class="rt-timing-readout">Timing: switch Real Time ON and tap each drop</div>';
       el.innerHTML = h;
+      if (this._timing) this._renderTimingReadout(this._timing);
     }
 
     // ---- Series Intelligence Panel ------------------------------

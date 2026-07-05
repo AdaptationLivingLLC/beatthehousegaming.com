@@ -47,6 +47,7 @@
     follower: 'fa-link',
     gap: 'fa-hourglass-half',
     cycle: 'fa-sync-alt',
+    timing: 'fa-stopwatch',
   };
   const DEFAULT_ICON = 'fa-circle-info';
 

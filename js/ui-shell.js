@@ -83,6 +83,34 @@
       document.body.classList.toggle('feed-hidden', !!s.feedHidden);
       return !!s.feedHidden;
     },
+
+    // Real Time switch. ON (default): each number tap is stamped as an
+    // actual ball-drop moment and feeds the cycle-timing engine. OFF:
+    // you are back-filling historical numbers, so their timestamps are
+    // ignored for cadence (they still record fully). BTHG._realTime is
+    // the live flag read at tap time in roulette-table.js; persisted so
+    // it survives reload mid-session.
+    setRealTime(on) {
+      BTHG._realTime = !!on;
+      const btn = document.getElementById('btn-realtime');
+      if (btn) {
+        btn.classList.toggle('ss-btn-rt-on', !!on);
+        btn.classList.toggle('ss-btn-rt-off', !on);
+        btn.title = on ? 'Real Time: ON (taps are live drops)' : 'Real Time: OFF (back-filling history)';
+      }
+      const s = BTHG.Storage.Settings.load();
+      s.realTime = !!on;
+      BTHG.Storage.Settings.save(s);
+      return !!on;
+    },
+
+    toggleRealTime() { return UI.setRealTime(BTHG._realTime === false); },
+
+    restoreRealTime() {
+      const s = BTHG.Storage.Settings.load();
+      // Default ON when nothing stored (a fresh install is assumed live).
+      return UI.setRealTime(s.realTime !== false);
+    },
   };
 
   // ---- Boot wiring ----------------------------------------------
@@ -92,6 +120,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       UI.restoreTheme();
       UI.restoreFeed();
+      UI.restoreRealTime();
       UI.applyLayout();
       window.addEventListener('resize', () => UI.applyLayout());
       window.addEventListener('orientationchange', () => UI.applyLayout());
@@ -102,6 +131,8 @@
         const hidden = UI.toggleFeed();
         feedBtn.title = hidden ? 'Show insight feed' : 'Hide insight feed';
       });
+      const rtBtn = document.getElementById('btn-realtime');
+      if (rtBtn) rtBtn.addEventListener('click', () => UI.toggleRealTime());
     });
   }
 
