@@ -96,10 +96,31 @@ const { Bankroll, BankrollManager } = BTHG;
   });
   assert.ok(bounded, 'replaySeriesCycle must return a result for a real closing phase');
   assert.equal(bounded.worstDepth, 3, 'worst of the THREE bounded cycles (2, 1, 3 misses) is 3, not a merged streak');
-  assert.equal(bounded.worstSpend, 12);
+  // Hand-recomputed for Important 3 (0/00 excluded from the escalation
+  // deficit but included in the cash ledger; reset gated on real cash net;
+  // priced at $1 since no denomination is passed here). escalationCoverage
+  // = |{4,6}| = 2, fullCoverage = |{4,6,0,37}| = 4, netPerUnit = 36-2 = 34,
+  // floor = 1. perNumber stays $1 throughout (spent never exceeds 34) so
+  // every spin's real stake is 1*4 = $4. Running the 9 closing-phase spins
+  // [9,9,2,9,6,9,9,9,4] continuously (cycles reset in place at the 3
+  // closer hits, since each brings the cash net to >= 0 here):
+  //   spin1 miss: cashNet 0->-4 (trough 4)
+  //   spin2 miss: cashNet -4->-8 (trough 8)
+  //   spin3 HIT(2): cashNet -8->-12 (trough 12) then +36 payout -> +24 -> reset, cashNet=0
+  //   spin4 miss: cashNet 0->-4 (trough 4)
+  //   spin5 HIT(6): cashNet -4->-8 (trough 8) then +36 -> +28 -> reset, cashNet=0
+  //   spin6 miss: cashNet 0->-4 (trough 4)
+  //   spin7 miss: cashNet -4->-8 (trough 8)
+  //   spin8 miss: cashNet -8->-12 (trough 12)
+  //   spin9 HIT(4): cashNet -12->-16 (trough 16, the new worst) then +36 -> +20 -> reset, cashNet=0
+  // worstSpend = peak trough = 16 (was 12 under the old semantics, which
+  // never counted the resolving hit spin's own just-placed stake).
+  assert.equal(bounded.worstSpend, 16);
   assert.equal(bounded.currentLevel, 0, 'series ends on a hit, cycle reset');
   assert.equal(bounded.currentSpent, 0);
   assert.equal(bounded.estimated, undefined, 'closerOffsets present -> not a fallback estimate');
+  assert.equal(bounded.pricedAt, 1, 'no denomination passed -> priced at minUnit');
+  assert.equal(bounded.pricedWithDenomination, false);
 
   // Same record WITHOUT closerOffsets (simulating a pre-Task-5 archived
   // record that never got the field) reproduces the OLD bug: numbers 2 and
@@ -112,18 +133,69 @@ const { Bankroll, BankrollManager } = BTHG;
   });
   assert.equal(legacy.estimated, true, 'no closerOffsets field at all -> flagged as an estimate');
   assert.equal(legacy.worstDepth, 4, 'fallback merges the aged-out closer (2) into one longer miss streak');
-  assert.equal(legacy.worstSpend, 16);
+  // Hand-recomputed: only spins whose VALUE is in {4,6,0,37} count as hits
+  // here (index2's value "2" is invisible to this fallback, same gap as
+  // before), so only index4(6) and index8(4) are hits; everything else is
+  // a real miss, all at $4/spin (perNumber stays $1 the whole way since
+  // spent never exceeds netPerUnit=34):
+  //   spins1-4 miss,miss,miss,miss: cashNet 0->-4->-8->-12->-16 (trough 16)
+  //   spin5 HIT(6): cashNet -16->-20 (trough 20, new worst) then +36 -> +16 -> reset
+  //   spins6-8 miss,miss,miss: cashNet 0->-4->-8->-12 (trough 12, under 20)
+  //   spin9 HIT(4): cashNet -12->-16 (trough 16, under 20) then +36 -> +20 -> reset
+  // worstSpend = 20 (was 16 under the old semantics).
+  assert.equal(legacy.worstSpend, 20);
   assert.ok(legacy.worstDepth > bounded.worstDepth, 'unbounded fallback inflates worst depth versus the real bounded cycles');
   assert.ok(legacy.worstSpend > bounded.worstSpend, 'unbounded fallback inflates worst spend versus the real bounded cycles');
 
   const r = Bankroll.recommendStart({ minUnit: 10, archive: [record] });
   assert.notEqual(r.amount, null, 'archive with one real completion produces a number');
   assert.equal(r.worstDepth, 3, 'recommendStart uses the bounded worst, not the merged-streak worst');
-  assert.equal(r.worstSpend, 120);
+  assert.equal(r.worstSpend, 160, 'bounded worstSpend(16 at $1 unit) x minUnit(10)');
   assert.equal(r.amount, Math.ceil(r.worstSpend * 1.25 / 50) * 50);
   assert.ok(r.explanation.includes('worst'));
   assert.ok(!r.explanation.includes('estimate may be high'), 'no caveat when closerOffsets is present');
   console.log('archive-replay recommendation bounded by real closer resets, not one merged streak: PASS');
+}
+
+// ---- Test 4d: Important 3 fix — replay prices at the denomination when
+// one is given (matching what live betting actually bets), the table
+// minimum otherwise; dollar figures scale linearly with the unit used,
+// miss-depth counts do not. -----------------------------------------------
+{
+  const record4d = {
+    spinHistory: [10, 11, 12, 13, 9, 9, 2, 9, 6, 9, 9, 9, 4],
+    finalEight: [4, 6],
+    entrySpin: 4,
+    closerOffsets: [9, 3, 5],
+  };
+  const atTableMin = Bankroll.replaySeriesCycle({
+    spinHistory: record4d.spinHistory, entrySpin: record4d.entrySpin, finalEight: record4d.finalEight,
+    closerOffsets: record4d.closerOffsets, minUnit: 1,
+  });
+  const atDenom = Bankroll.replaySeriesCycle({
+    spinHistory: record4d.spinHistory, entrySpin: record4d.entrySpin, finalEight: record4d.finalEight,
+    closerOffsets: record4d.closerOffsets, minUnit: 1, denomination: 5,
+  });
+  assert.equal(atTableMin.pricedAt, 1);
+  assert.equal(atTableMin.pricedWithDenomination, false);
+  assert.equal(atDenom.pricedAt, 5);
+  assert.equal(atDenom.pricedWithDenomination, true);
+  assert.equal(atDenom.worstSpend, atTableMin.worstSpend * 5, 'dollar figures scale linearly with the priced unit');
+  assert.equal(atDenom.worstDepth, atTableMin.worstDepth, 'miss depth is a count, not a dollar figure — does not scale');
+
+  // projectionLines states which unit was actually used, in plain words.
+  const withDenomLine = Bankroll.projectionLines({
+    minUnit: 1, seriesAverage: 10,
+    live: { active: true, currentLevel: 1, currentSpent: 5, pricedAt: 5, pricedWithDenomination: true },
+  });
+  assert.ok(withDenomLine.live.includes('$5 denomination'), 'live line states the denomination was used');
+
+  const withTableMinLine = Bankroll.projectionLines({
+    minUnit: 1, seriesAverage: 10,
+    live: { active: true, currentLevel: 1, currentSpent: 1, pricedAt: 1, pricedWithDenomination: false },
+  });
+  assert.ok(withTableMinLine.live.includes('$1 table minimum'), 'live line states the table minimum was used, no denomination yet');
+  console.log('replaySeriesCycle prices at the denomination when given, table minimum otherwise (Important 3): PASS');
 }
 
 // ---- Test 4b: replaySeriesCycle edge cases ----
