@@ -134,7 +134,10 @@
         </div>
     </div>
 
-    <!-- Scripts (order matters) -->
+    <!-- Scripts (order matters). boot-guard first: it paints uncaught
+         errors on screen so a broken deploy is a screenshot, not a
+         mystery of dead buttons. -->
+    <script src="js/boot-guard.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/machine-profile.js"></script>
