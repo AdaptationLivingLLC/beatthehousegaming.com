@@ -958,6 +958,13 @@
             </select>
           </div>
         </div>
+        <div class="settings-legend">
+          <h3 style="color:#d4af37;margin:1.25rem 0 0.5rem;font-size:0.95rem;">Top Bar Buttons</h3>
+          <p><i class="fas fa-bolt" style="color:#5EFF00;"></i> <strong>Real Time (LIVE / HIST)</strong> tap to switch. LIVE means each number you tap is a real ball drop, timed for the cadence engine. HIST means you are entering old numbers, so their timing is ignored. Leave it on LIVE at the wheel; switch to HIST when back-filling history.</p>
+          <p><i class="fas fa-list" style="color:#d4af37;"></i> <strong>Hide Feed</strong> collapses the insight panel so the table fills the screen. The SIGNAL chip up top still shows the call.</p>
+          <p><i class="fas fa-palette" style="color:#d4af37;"></i> <strong>Theme</strong> cycles the color themes.</p>
+          <p><i class="fas fa-stopwatch" style="color:#d4af37;"></i> <strong>Reset Timing</strong> (in the Physics panel) clears the learned cadence without deleting any of your numbers. Use it if back-fill got tapped while Real Time was on LIVE.</p>
+        </div>
         <div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;">
           <button id="set-save" class="btn-gold">Save</button>
           <button id="set-export" class="btn-outline">Export Data</button>

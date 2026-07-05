@@ -3035,3 +3035,49 @@ body.feed-hidden.layout-desktop #app-root {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Real Time button label + Reset Timing + Settings legend (2026-07-05) ---- */
+.ss-btn-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+.ss-btn-rt-off .ss-btn-label { color: var(--muted); }
+
+.rt-timing-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+.rt-timing-row .rt-timing-readout {
+  margin-top: 0;
+  border-top: none;
+  padding: 0;
+  flex: 1;
+}
+.rt-reset-timing {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+  min-height: 32px;
+}
+.rt-reset-timing:active { color: var(--accent); border-color: var(--accent); }
+
+.settings-legend p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0.4rem 0;
+}
+.settings-legend strong { color: var(--text); }

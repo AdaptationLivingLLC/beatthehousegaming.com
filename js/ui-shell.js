@@ -97,6 +97,10 @@
         btn.classList.toggle('ss-btn-rt-on', !!on);
         btn.classList.toggle('ss-btn-rt-off', !on);
         btn.title = on ? 'Real Time: ON (taps are live drops)' : 'Real Time: OFF (back-filling history)';
+        // Visible state label so the icon is never ambiguous: LIVE when a
+        // tap is a real drop, HIST when back-filling old numbers.
+        const lbl = btn.querySelector('.ss-btn-label');
+        if (lbl) lbl.textContent = on ? 'LIVE' : 'HIST';
       }
       const s = BTHG.Storage.Settings.load();
       s.realTime = !!on;
@@ -111,6 +115,28 @@
       // Default ON when nothing stored (a fresh install is assumed live).
       return UI.setRealTime(s.realTime !== false);
     },
+
+    // Reset the cycle-timing data WITHOUT deleting any spins. Sets a
+    // "learn cadence only from here on" cutoff timestamp; the timing
+    // engine ignores every drop before it (see roulette-table.js
+    // _updateIntelFeed). Used when back-fill got tapped while Real Time
+    // was ON and polluted the cadence — the numbers stay, only the
+    // timing learning restarts. Returns the cutoff it set.
+    resetTiming() {
+      const s = BTHG.Storage.Settings.load();
+      s.timingResetAt = Date.now();
+      BTHG.Storage.Settings.save(s);
+      BTHG._timingResetAt = s.timingResetAt;
+      const el = document.getElementById('timing-readout');
+      if (el) el.textContent = 'Timing reset. Tap live drops to relearn the cadence.';
+      return s.timingResetAt;
+    },
+
+    restoreTimingReset() {
+      const s = BTHG.Storage.Settings.load();
+      BTHG._timingResetAt = s.timingResetAt || 0;
+      return BTHG._timingResetAt;
+    },
   };
 
   // ---- Boot wiring ----------------------------------------------
@@ -121,6 +147,7 @@
       UI.restoreTheme();
       UI.restoreFeed();
       UI.restoreRealTime();
+      UI.restoreTimingReset();
       UI.applyLayout();
       window.addEventListener('resize', () => UI.applyLayout());
       window.addEventListener('orientationchange', () => UI.applyLayout());

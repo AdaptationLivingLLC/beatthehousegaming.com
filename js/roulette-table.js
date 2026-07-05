@@ -544,7 +544,13 @@
           try {
             if (BTHG.TimingEngine && BTHG.CycleWatch.splitSittings) {
               const sittings = BTHG.CycleWatch.splitSittings(tape);
-              const current = sittings.length ? sittings[sittings.length - 1] : [];
+              let current = sittings.length ? sittings[sittings.length - 1] : [];
+              // Reset Timing cutoff: ignore drops recorded before the user
+              // pressed Reset (e.g. back-fill that got tapped while Real
+              // Time was ON). Only filters the timing view — the spins
+              // themselves are untouched.
+              const resetAt = BTHG._timingResetAt || 0;
+              if (resetAt) current = current.filter(s => s.timestamp >= resetAt);
               const te = BTHG.TimingEngine.analyze({ sitting: current, nowLive: Date.now() });
               this._timing = te;
               if (te.alert) BTHG.IntelFeed.push(te.alert);
@@ -1364,8 +1370,19 @@
       h += '</div>';
       // Cycle-timing readout: learned live from the drop cadence, separate
       // from the ball-physics tiers above. Filled by _renderTimingReadout.
-      h += '<div id="timing-readout" class="rt-timing-readout">Timing: switch Real Time ON and tap each drop</div>';
+      // The Reset button clears the learned cadence (via a cutoff marker)
+      // without deleting any spins — for when back-fill got tapped with
+      // Real Time ON and polluted the timing.
+      h += '<div class="rt-timing-row">' +
+             '<div id="timing-readout" class="rt-timing-readout">Timing: switch Real Time ON and tap each drop</div>' +
+             '<button id="btn-reset-timing" class="rt-reset-timing" type="button">Reset Timing</button>' +
+           '</div>';
       el.innerHTML = h;
+      const rtBtn = el.querySelector('#btn-reset-timing');
+      if (rtBtn) rtBtn.addEventListener('click', () => {
+        if (BTHG.UI && BTHG.UI.resetTiming) BTHG.UI.resetTiming();
+        this._timing = null;
+      });
       if (this._timing) this._renderTimingReadout(this._timing);
     }
 
