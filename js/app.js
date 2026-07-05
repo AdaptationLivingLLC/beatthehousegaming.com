@@ -310,6 +310,7 @@
       if (action === 'openSettings') showSettingsPanel();
       if (action === 'openDataInspector') showDataInspector();
       if (action === 'openBankroll') showBankrollPanel();
+      if (action === 'openSector') showSectorPanel();
     });
   }
 
@@ -905,6 +906,106 @@
       tableUI.update();
       tableUI._saveState();
     });
+  }
+
+  // ============================================================
+  // SECTOR LOGGER PANEL (physical-sector prediction)
+  // ============================================================
+  function showSectorPanel() {
+    const machineId = BTHG._currentMachineId || 'default';
+    const layout = (BTHG.MachineProfiles.getActive() || {}).wheelLayout || null;
+    const overlay = document.createElement('div');
+    overlay.className = 'rt-overlay rt-overlay-visible';
+
+    const d = BTHG.SectorLogger.disp;
+
+    // Update ONLY the prediction output (called on every keystroke of the
+    // predict field, so the field never loses focus to a full re-render).
+    function updatePrediction() {
+      const out = overlay.querySelector('#sec-predict-out');
+      const inp = overlay.querySelector('#sec-predict-ref');
+      if (!out || !inp) return;
+      const r = BTHG.SectorLogger.analyze(BTHG.SectorLogger.load(machineId), layout);
+      const refVal = inp.value;
+      const ref = BTHG.parseNumber(refVal);
+      if (refVal === '' || ref == null) { out.textContent = ''; out.className = 'sec-predict-out'; return; }
+      const p = r.predict(ref);
+      if (p) {
+        out.className = 'sec-predict-out';
+        out.innerHTML = `Bet the arc around <strong>${d(p.center)}</strong> (from ${d(p.lo)} to ${d(p.hi)}: ${p.arc.map(d).join(' ')})`;
+      } else if (r.count < BTHG.SectorLogger.MIN_SPINS) {
+        out.className = 'sec-predict-out sec-muted';
+        out.textContent = `Need ${BTHG.SectorLogger.MIN_SPINS} spins before a call (have ${r.count}).`;
+      } else {
+        out.className = 'sec-predict-out sec-muted';
+        out.textContent = 'Spread too wide to call a sector on this data yet.';
+      }
+    }
+
+    function render() {
+      const obs = BTHG.SectorLogger.load(machineId);
+      const r = BTHG.SectorLogger.analyze(obs, layout);
+
+      const refVal = overlay.querySelector('#sec-predict-ref')
+        ? overlay.querySelector('#sec-predict-ref').value : '';
+
+      let statLine;
+      if (r.count === 0) {
+        statLine = 'No spins logged yet. Log the reference number at launch and the winner for each spin.';
+      } else {
+        const center = r.meanOffset != null ? r.meanOffset.toFixed(1) : '--';
+        const spread = (r.scatterPockets != null && isFinite(r.scatterPockets)) ? r.scatterPockets.toFixed(1) : '--';
+        statLine = `${r.count} spins logged. Offset center ${center} pockets, spread ${spread}. Signal: ${r.confidence.label}.`;
+      }
+
+      const rows = obs.slice(-8).reverse().map((o, i) =>
+        `<div class="sec-row">#${obs.length - i}: ref ${d(o.refNum)} to win ${d(o.winNum)} (offset ${BTHG.SectorLogger.offsetOf(o.refNum, o.winNum, layout)})</div>`
+      ).join('');
+
+      overlay.innerHTML = `
+        <div class="rt-overlay-content sector-panel">
+          <h2 style="color:#d4af37;">Sector Predictor</h2>
+          <p class="sec-help">At launch, read the number at your reference diamond and log it with the winner. After a handful of spins this learns the fixed offset and calls the landing arc.</p>
+
+          <div class="sec-log-row">
+            <div class="settings-field"><label>Ref number at launch</label><input type="text" id="sec-ref" inputmode="numeric" placeholder="e.g. 33"></div>
+            <div class="settings-field"><label>Winning number</label><input type="text" id="sec-win" inputmode="numeric" placeholder="e.g. 22"></div>
+            <button id="sec-log" class="btn-gold" style="align-self:flex-end;">Log Spin</button>
+          </div>
+
+          <div class="sec-stat">${statLine}</div>
+
+          <div class="sec-log-row">
+            <div class="settings-field"><label>Predict: ref number now</label><input type="text" id="sec-predict-ref" inputmode="numeric" value="${refVal}" placeholder="type the launch ref"></div>
+          </div>
+          <div id="sec-predict-out" class="sec-predict-out"></div>
+
+          <div class="sec-history">${rows}</div>
+          <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
+            <button id="sec-undo" class="btn-outline">Undo Last</button>
+            <button id="sec-clear" class="btn-outline" style="border-color:#ff3333;color:#ff3333;">Clear All</button>
+          </div>
+          <button class="rt-overlay-close" style="margin-top:1rem;">Close</button>
+        </div>`;
+
+      overlay.querySelector('#sec-log').addEventListener('click', () => {
+        const ref = BTHG.parseNumber(overlay.querySelector('#sec-ref').value);
+        const win = BTHG.parseNumber(overlay.querySelector('#sec-win').value);
+        if (ref == null || win == null) { alert('Enter both numbers (0-36 or 00).'); return; }
+        BTHG.SectorLogger.logSpin(machineId, ref, win);
+        render();
+      });
+      overlay.querySelector('#sec-undo').addEventListener('click', () => { BTHG.SectorLogger.removeLast(machineId); render(); });
+      overlay.querySelector('#sec-clear').addEventListener('click', () => {
+        if (confirm('Clear all logged sector spins for this machine? Your tracked numbers are not affected.')) { BTHG.SectorLogger.clear(machineId); render(); }
+      });
+      overlay.querySelector('#sec-predict-ref').addEventListener('input', () => updatePrediction());
+      overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
+      updatePrediction();
+    }
+
+    document.getElementById('app-root').appendChild(overlay);
+    render();
   }
 
   // ============================================================

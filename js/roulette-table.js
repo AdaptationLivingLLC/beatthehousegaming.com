@@ -135,6 +135,7 @@
             </div>
             <div class="rt-extra-btns">
               <button class="rt-corner-btn rt-extra-btn" id="btn-bankroll"><i class="fas fa-wallet"></i><span>Bankroll</span></button>
+              <button class="rt-corner-btn rt-extra-btn" id="btn-sector"><i class="fas fa-bullseye"></i><span>Sector</span></button>
               <button class="rt-corner-btn rt-extra-btn" id="btn-settings"><i class="fas fa-cog"></i><span>Settings</span></button>
             </div>
           </div>
@@ -383,6 +384,10 @@
       // Bankroll panel
       const bankBtn = document.getElementById('btn-bankroll');
       if (bankBtn) bankBtn.addEventListener('click', () => this._onBankrollPanel());
+
+      // Sector logger (physical-sector prediction)
+      const sectorBtn = document.getElementById('btn-sector');
+      if (sectorBtn) sectorBtn.addEventListener('click', () => this._listeners.forEach(fn => fn('openSector')));
 
       // End Series
       const endBtn = document.getElementById('btn-end-series');
