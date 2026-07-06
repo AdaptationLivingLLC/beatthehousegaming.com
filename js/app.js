@@ -1008,6 +1008,65 @@
 
     const d = BTHG.SectorLogger.disp;
 
+    // ---- TAP TIMER state (lives across re-renders; performance.now taps) ----
+    // phase: 'idle' -> armed (wheel restarted) -> 'done' (ball fired).
+    const tapState = { phase: 'idle', t0: 0, waitSec: null };
+
+    function tapBtnLabel() {
+      if (tapState.phase === 'idle') return 'WHEEL RESTARTED — TAP';
+      if (tapState.phase === 'armed') return 'BALL FIRED — TAP';
+      return 'RE-ARM (next spin)';
+    }
+
+    function tapRate() {
+      const inp = overlay.querySelector('#sec-tap-rate');
+      const v = inp ? parseFloat(inp.value) : NaN;
+      return (v > 0) ? v : BTHG.SectorLogger.TAP_DEFAULT_RATE;
+    }
+
+    // Update ONLY the tap button + tap output (taps must never trigger a
+    // full re-render or the inputs lose focus/values mid-cycle).
+    function updateTapUI() {
+      const btn = overlay.querySelector('#sec-tap-btn');
+      const out = overlay.querySelector('#sec-tap-out');
+      if (!btn || !out) return;
+      btn.textContent = tapBtnLabel();
+      if (tapState.phase === 'armed') {
+        out.className = 'sec-predict-out sec-muted';
+        out.textContent = 'Timing the wait… tap again the instant the ball fires.';
+        return;
+      }
+      if (tapState.phase !== 'done' || !(tapState.waitSec > 0)) {
+        if (tapState.phase === 'idle') { out.className = 'sec-predict-out sec-muted'; out.textContent = ''; }
+        return;
+      }
+      const lastWin = BTHG.parseNumber(overlay.querySelector('#sec-tap-lastwin').value);
+      const r = BTHG.SectorLogger.tapAnalyze(BTHG.SectorLogger.tapLoad(machineId), tapRate(), layout);
+      const p = lastWin != null ? r.predict(lastWin, tapState.waitSec) : null;
+      if (!p) {
+        out.className = 'sec-predict-out sec-muted';
+        out.textContent = `Wait ${tapState.waitSec.toFixed(2)}s captured — enter the last winner from the board to get the arc.`;
+        return;
+      }
+      out.className = 'sec-predict-out';
+      out.innerHTML = `Wait ${tapState.waitSec.toFixed(2)}s → bet the arc around <strong>${d(p.center)}</strong> (${p.arc.map(d).join(' ')})`;
+    }
+
+    function onTapPress() {
+      if (tapState.phase === 'idle') {
+        tapState.t0 = performance.now();
+        tapState.waitSec = null;
+        tapState.phase = 'armed';
+      } else if (tapState.phase === 'armed') {
+        tapState.waitSec = (performance.now() - tapState.t0) / 1000;
+        tapState.phase = 'done';
+      } else {
+        tapState.phase = 'idle';
+        tapState.waitSec = null;
+      }
+      updateTapUI();
+    }
+
     // Update ONLY the prediction output (called on every keystroke of the
     // predict field, so the field never loses focus to a full re-render).
     function updatePrediction() {
@@ -1038,6 +1097,20 @@
       const refVal = overlay.querySelector('#sec-predict-ref')
         ? overlay.querySelector('#sec-predict-ref').value : '';
 
+      // Preserve tap-section inputs across full re-renders.
+      const q = sel => overlay.querySelector(sel);
+      const tapLastVal = q('#sec-tap-lastwin') ? q('#sec-tap-lastwin').value : '';
+      const tapRateVal = q('#sec-tap-rate') ? q('#sec-tap-rate').value
+        : String(BTHG.SectorLogger.tapLoadCfg(machineId).rate);
+      const tapWinVal = q('#sec-tap-win') ? q('#sec-tap-win').value : '';
+      const tapManualVal = q('#sec-tap-manual') ? q('#sec-tap-manual').value : '';
+
+      const tapObs = BTHG.SectorLogger.tapLoad(machineId);
+      const tr = BTHG.SectorLogger.tapAnalyze(tapObs, parseFloat(tapRateVal) > 0 ? parseFloat(tapRateVal) : undefined, layout);
+      const tapStatLine = tr.count === 0
+        ? 'No tap spins logged. Predictions use the physics default until you log a few.'
+        : `${tr.count} tap spin${tr.count > 1 ? 's' : ''}, machine constant +${tr.mu.toFixed(1)}, spread ${isFinite(tr.scatter) ? tr.scatter.toFixed(1) : '--'}. Signal: ${tr.label}.`;
+
       let statLine;
       if (r.count === 0) {
         statLine = 'No spins logged yet. Log the reference number at launch and the winner for each spin.';
@@ -1064,6 +1137,27 @@
         <div class="rt-overlay-content sector-panel">
           <h2 style="color:#d4af37;">Sector Predictor</h2>
           <p class="sec-help">At launch, read the number at your reference diamond and log it with the winner. After a handful of spins this learns the fixed offset and calls the landing arc.</p>
+
+          <div style="border:1px solid rgba(212,175,55,0.35);border-radius:8px;padding:0.75rem;margin-bottom:1.25rem;">
+            <div style="color:#d4af37;font-weight:bold;letter-spacing:0.06em;margin-bottom:0.35rem;">TAP TIMER (live)</div>
+            <p class="sec-help" style="margin-bottom:0.6rem;">No reading needed. Enter the last winner from the board. Tap when the wheel breaks out of its freeze, tap again when the ball fires. The arc appears instantly. After the spin lands, log the winner to sharpen the constant.</p>
+            <div class="sec-log-row">
+              <div class="settings-field"><label>Last winner (board)</label><input type="text" id="sec-tap-lastwin" inputmode="numeric" value="${tapLastVal}" placeholder="e.g. 21"></div>
+              <div class="settings-field"><label>Wheel speed (pockets/s)</label><input type="text" id="sec-tap-rate" inputmode="decimal" value="${tapRateVal}"></div>
+            </div>
+            <button id="sec-tap-btn" class="btn-gold" style="width:100%;font-size:1.05rem;padding:0.85rem;margin-top:0.35rem;">${tapBtnLabel()}</button>
+            <div id="sec-tap-out" class="sec-predict-out sec-muted" style="margin-top:0.5rem;"></div>
+            <div class="sec-log-row" style="margin-top:0.5rem;">
+              <div class="settings-field"><label>Or type wait seconds</label><input type="text" id="sec-tap-manual" inputmode="decimal" value="${tapManualVal}" placeholder="e.g. 14.3"></div>
+              <button id="sec-tap-manual-go" class="btn-outline" style="align-self:flex-end;">Predict</button>
+            </div>
+            <div class="sec-log-row" style="margin-top:0.5rem;">
+              <div class="settings-field"><label>Winner (after landing)</label><input type="text" id="sec-tap-win" inputmode="numeric" value="${tapWinVal}" placeholder="e.g. 14"></div>
+              <button id="sec-tap-log" class="btn-outline" style="align-self:flex-end;">Log Tap Spin</button>
+              <button id="sec-tap-undo" class="btn-outline" style="align-self:flex-end;">Undo Tap</button>
+            </div>
+            <div class="sec-stat">${tapStatLine}</div>
+          </div>
 
           <div class="sec-log-row">
             <div class="settings-field"><label>Ref number at launch</label><input type="text" id="sec-ref" inputmode="numeric" placeholder="e.g. 33"></div>
@@ -1099,7 +1193,43 @@
       });
       overlay.querySelector('#sec-predict-ref').addEventListener('input', () => updatePrediction());
       overlay.querySelector('.rt-overlay-close').addEventListener('click', () => overlay.remove());
+
+      // ---- tap timer wiring ----
+      overlay.querySelector('#sec-tap-btn').addEventListener('click', onTapPress);
+      overlay.querySelector('#sec-tap-lastwin').addEventListener('input', () => updateTapUI());
+      overlay.querySelector('#sec-tap-rate').addEventListener('change', () => {
+        BTHG.SectorLogger.tapSaveCfg(machineId, { rate: tapRate() });
+        updateTapUI();
+      });
+      overlay.querySelector('#sec-tap-manual-go').addEventListener('click', () => {
+        const v = parseFloat(overlay.querySelector('#sec-tap-manual').value);
+        if (!(v > 0)) { alert('Enter the wait in seconds, like 14.3'); return; }
+        tapState.waitSec = v;
+        tapState.phase = 'done';
+        updateTapUI();
+      });
+      overlay.querySelector('#sec-tap-log').addEventListener('click', () => {
+        const lastWin = BTHG.parseNumber(overlay.querySelector('#sec-tap-lastwin').value);
+        const win = BTHG.parseNumber(overlay.querySelector('#sec-tap-win').value);
+        const manual = parseFloat(overlay.querySelector('#sec-tap-manual').value);
+        const waitSec = (tapState.waitSec > 0) ? tapState.waitSec : (manual > 0 ? manual : null);
+        if (lastWin == null || win == null || !(waitSec > 0)) {
+          alert('Need the last winner, the wait seconds (taps or typed), and the winning number.');
+          return;
+        }
+        BTHG.SectorLogger.tapLog(machineId, lastWin, waitSec, win);
+        tapState.phase = 'idle';
+        tapState.waitSec = null;
+        overlay.querySelector('#sec-tap-win').value = '';
+        render();
+      });
+      overlay.querySelector('#sec-tap-undo').addEventListener('click', () => {
+        BTHG.SectorLogger.tapRemoveLast(machineId);
+        render();
+      });
+
       updatePrediction();
+      updateTapUI();
     }
 
     document.getElementById('app-root').appendChild(overlay);

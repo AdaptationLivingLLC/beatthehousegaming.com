@@ -178,6 +178,143 @@
     };
   }
 
+  // ============================================================
+  // TAP TIMER (dead-stop + wait-time prediction, 2026-07-06)
+  //
+  // Verified machine facts this model rests on:
+  //   1. The wheel decelerates into its reload stop deterministically:
+  //      the number at Brandon's diamond at the freeze is always the
+  //      previous winner +2 pockets in wheel order (7/7 exact in tape).
+  //   2. Flight is a constant ~+18 pockets (launch-reference cluster).
+  //   3. The ONLY live variable is T: seconds from the wheel restarting
+  //      after its ~1s freeze to the ball firing. The rotor covers
+  //      rate*T pockets in that wait.
+  // So: winnerIndex ~= idx(lastWinner) + rate*T + MU, where MU bundles
+  // every fixed piece (the +2 decel, the spin-up shortfall after the
+  // restart, the +18 flight). MU starts at the physics default (+20)
+  // and is LEARNED as the circular mean of logged tap residuals, which
+  // also absorbs reaction-time bias in the taps.
+  // ============================================================
+  const TAP_DEFAULT_RATE = 13.2; // rotor pockets/second (editable in panel)
+  const TAP_DEFAULT_MU = 20;     // +2 decel-to-stop, +18 flight, no shortfall
+  const TAP_MIN_SPINS = 3;
+
+  function tapKey(machineId) { return 'bthg_sector_tap_' + (machineId || 'default'); }
+  function tapCfgKey(machineId) { return 'bthg_sector_tapcfg_' + (machineId || 'default'); }
+
+  function tapLoad(machineId) {
+    if (typeof localStorage === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem(tapKey(machineId))) || []; }
+    catch { return []; }
+  }
+  function tapSave(machineId, list) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(tapKey(machineId), JSON.stringify(list));
+  }
+  function tapLog(machineId, lastWin, waitSec, winNum, ts) {
+    const list = tapLoad(machineId);
+    list.push({ lastWin, waitSec, winNum, ts: ts || (typeof Date !== 'undefined' ? Date.now() : 0) });
+    tapSave(machineId, list);
+    return list;
+  }
+  function tapRemoveLast(machineId) {
+    const list = tapLoad(machineId);
+    list.pop();
+    tapSave(machineId, list);
+    return list;
+  }
+  function tapClear(machineId) { tapSave(machineId, []); }
+
+  function tapLoadCfg(machineId) {
+    if (typeof localStorage === 'undefined') return { rate: TAP_DEFAULT_RATE };
+    try {
+      const cfg = JSON.parse(localStorage.getItem(tapCfgKey(machineId))) || {};
+      return { rate: (cfg.rate > 0) ? cfg.rate : TAP_DEFAULT_RATE };
+    } catch { return { rate: TAP_DEFAULT_RATE }; }
+  }
+  function tapSaveCfg(machineId, cfg) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(tapCfgKey(machineId), JSON.stringify(cfg || {}));
+  }
+
+  // Residual: pockets left after removing the measured rotation from the
+  // observed travel — one spin's estimate of the machine constant MU.
+  // Fractional, wrapped to 0..N.
+  function tapResidual(lastWin, waitSec, winNum, rate, order) {
+    const o = order || DEFAULT_ORDER;
+    const N = o.length;
+    const li = o.indexOf(lastWin), wi = o.indexOf(winNum);
+    const r = rate > 0 ? rate : TAP_DEFAULT_RATE;
+    if (li < 0 || wi < 0 || !(waitSec > 0)) return null;
+    const raw = wi - li - r * waitSec;
+    return ((raw % N) + N) % N;
+  }
+
+  /**
+   * tapAnalyze(observations, rate, order) -> {
+   *   count, residuals, mu, R, scatter, calibrated, label,
+   *   predict(lastWin, waitSec) -> { center, centerIndex, arc, halfWidth, lo, hi } | null
+   * }
+   * observations: [{lastWin, waitSec, winNum}]. Malformed entries skipped.
+   * Before TAP_MIN_SPINS logged taps, predictions run on the physics
+   * default MU and are labeled uncalibrated rather than refused — the
+   * whole point of the tool is to be usable on spin one and sharpen.
+   */
+  function tapAnalyze(observations, rate, order) {
+    const o = order || DEFAULT_ORDER;
+    const N = o.length;
+    const r = rate > 0 ? rate : TAP_DEFAULT_RATE;
+
+    const residuals = [];
+    for (const ob of (observations || [])) {
+      const res = tapResidual(ob.lastWin, ob.waitSec, ob.winNum, r, o);
+      if (res != null) residuals.push(res);
+    }
+    const count = residuals.length;
+
+    let mu = TAP_DEFAULT_MU, R = 0, scatter = null;
+    if (count > 0) {
+      let sx = 0, sy = 0;
+      for (const res of residuals) {
+        const a = (res / N) * 2 * Math.PI;
+        sx += Math.cos(a); sy += Math.sin(a);
+      }
+      R = Math.sqrt(sx * sx + sy * sy) / count;
+      let ang = Math.atan2(sy, sx);
+      if (ang < 0) ang += 2 * Math.PI;
+      mu = (ang / (2 * Math.PI)) * N;
+      const sd = R > 0 ? Math.sqrt(-2 * Math.log(R)) : Infinity;
+      scatter = isFinite(sd) ? (sd / (2 * Math.PI)) * N : Infinity;
+    }
+
+    const calibrated = count >= TAP_MIN_SPINS && scatter != null && scatter <= 6;
+    let label;
+    if (count === 0) label = 'uncalibrated (physics default)';
+    else if (count < TAP_MIN_SPINS) label = `calibrating (${count} tap${count > 1 ? 's' : ''})`;
+    else if (scatter <= 3) label = 'strong';
+    else if (scatter <= 6) label = 'moderate';
+    else label = 'scattered — check taps/rate';
+
+    function predict(lastWin, waitSec) {
+      const li = o.indexOf(lastWin);
+      if (li < 0 || !(waitSec > 0)) return null;
+      const centerIndex = ((Math.round(li + r * waitSec + mu) % N) + N) % N;
+      const half = calibrated ? Math.min(5, Math.max(2, Math.round(scatter))) : 3;
+      const arc = [];
+      for (let d2 = -half; d2 <= half; d2++) arc.push(o[((centerIndex + d2) % N + N) % N]);
+      return {
+        center: o[centerIndex],
+        centerIndex,
+        arc,
+        halfWidth: half,
+        lo: o[((centerIndex - half) % N + N) % N],
+        hi: o[((centerIndex + half) % N + N) % N],
+      };
+    }
+
+    return { count, residuals, mu, R, scatter, calibrated, label, predict };
+  }
+
   BTHG.SectorLogger = {
     DEFAULT_ORDER,
     MIN_SPINS,
@@ -185,6 +322,11 @@
     load, save, logSpin, removeLast, clear,
     offsetOf,
     analyze,
+    // tap timer
+    TAP_DEFAULT_RATE, TAP_DEFAULT_MU, TAP_MIN_SPINS,
+    tapLoad, tapSave, tapLog, tapRemoveLast, tapClear,
+    tapLoadCfg, tapSaveCfg,
+    tapResidual, tapAnalyze,
   };
 
   return BTHG.SectorLogger;
