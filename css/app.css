@@ -3119,3 +3119,16 @@ body.feed-hidden.layout-desktop #app-root {
 .rt-tick-red { background: var(--red); }
 .rt-tick-black { background: var(--black-num, #1a1a1a); }
 .rt-tick-green { background: var(--green-zero, #00733a); }
+
+/* ---- Sector off-reference outlier flag (2026-07-06) ---- */
+.sec-row-out { color: var(--loss, #cf5149); }
+.sec-flag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--loss, #cf5149);
+  border: 1px solid var(--loss, #cf5149);
+  border-radius: 3px;
+  padding: 0 0.3rem;
+  margin-left: 0.35rem;
+}

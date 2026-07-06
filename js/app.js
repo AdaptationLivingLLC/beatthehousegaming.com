@@ -1042,14 +1042,23 @@
       if (r.count === 0) {
         statLine = 'No spins logged yet. Log the reference number at launch and the winner for each spin.';
       } else {
-        const center = r.meanOffset != null ? r.meanOffset.toFixed(1) : '--';
+        const center = r.meanOffset != null ? Math.round(r.meanOffset) : '--';
         const spread = (r.scatterPockets != null && isFinite(r.scatterPockets)) ? r.scatterPockets.toFixed(1) : '--';
-        statLine = `${r.count} spins logged. Offset center ${center} pockets, spread ${spread}. Signal: ${r.confidence.label}.`;
+        const flagged = (r.outlierIndices || []).length;
+        const flagTxt = flagged
+          ? ` ${flagged} spin${flagged > 1 ? 's' : ''} flagged off-reference (likely read off a different diamond) and set aside.`
+          : '';
+        statLine = `${r.count} spins, ${r.coreCount != null ? r.coreCount : r.count} on-reference. Offset center +${center} pockets, spread ${spread}. Signal: ${r.confidence.label}.${flagTxt}`;
       }
 
-      const rows = obs.slice(-8).reverse().map((o, i) =>
-        `<div class="sec-row">#${obs.length - i}: ref ${d(o.refNum)} to win ${d(o.winNum)} (offset ${BTHG.SectorLogger.offsetOf(o.refNum, o.winNum, layout)})</div>`
-      ).join('');
+      // Which observation indices are off-reference outliers (from analyze).
+      const outlierSet = new Set(r.outlierIndices || []);
+      const rows = obs.slice(-8).reverse().map((o, i) => {
+        const absIdx = obs.length - 1 - i;
+        const isOut = outlierSet.has(absIdx);
+        const off = BTHG.SectorLogger.offsetOf(o.refNum, o.winNum, layout);
+        return `<div class="sec-row${isOut ? ' sec-row-out' : ''}">#${obs.length - i}: ref ${d(o.refNum)} to win ${d(o.winNum)} (offset +${off})${isOut ? ' <span class="sec-flag">check reference</span>' : ''}</div>`;
+      }).join('');
 
       overlay.innerHTML = `
         <div class="rt-overlay-content sector-panel">

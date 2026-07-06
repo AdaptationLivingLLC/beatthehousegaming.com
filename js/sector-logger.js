@@ -126,6 +126,27 @@
     else if (scatterPockets <= 9) confidence = { tier: 1, label: 'weak' };
     else confidence = { tier: 0, label: 'scattered (no edge)' };
 
+    // Per-spin outlier flag. A spin whose offset sits far from the cluster
+    // center is almost never wheel scatter — on Brandon's machine it means
+    // the launch number was read off a DIFFERENT reference point (a
+    // different diamond), which slides every offset by ~5 pockets per
+    // diamond. Flagging it lets the tight cluster stand on its own instead
+    // of a stray read widening the whole spread. Circular distance to the
+    // mean; OUTLIER_POCKETS is a hair over one diamond spacing (~4.75).
+    const OUTLIER_POCKETS = 5;
+    const circDist = off => {
+      const d = Math.abs(((off - meanOffset) % N + N) % N);
+      return Math.min(d, N - d);
+    };
+    const outliers = offsets
+      .map((off, i) => ({ i, off, dist: circDist(off) }))
+      .filter(x => x.dist > OUTLIER_POCKETS);
+
+    // Tightness of the CORE cluster (offsets within OUTLIER_POCKETS of the
+    // mean) — this is the spread you actually bet on once the off-reference
+    // reads are set aside.
+    const core = offsets.filter(off => circDist(off) <= OUTLIER_POCKETS);
+
     function predict(refNum) {
       const ri = o.indexOf(refNum);
       // No prediction without enough spins, an unknown reference, OR when
@@ -149,7 +170,12 @@
       };
     }
 
-    return { count, offsets, meanOffset, R, scatterPockets, confidence, predict };
+    return {
+      count, offsets, meanOffset, R, scatterPockets, confidence, predict,
+      // i indices into observations/offsets that read as off-reference.
+      outlierIndices: outliers.map(x => x.i),
+      coreCount: core.length,
+    };
   }
 
   BTHG.SectorLogger = {

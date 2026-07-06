@@ -89,4 +89,24 @@ const ORDER = SL.DEFAULT_ORDER;
   console.log('realistic cluster -> moderate confidence, sane arc: PASS');
 }
 
+// ---- Test 7: off-reference outlier flagged (Brandon's real 4 spins) ----
+{
+  // His four measured launch-ref -> winner pairs. Three cluster at +17/18/19
+  // (read off the same diamond); 7->13 is +11 (read off a DIFFERENT diamond)
+  // and must be flagged off-reference so it doesn't widen the cluster.
+  const obs = [
+    { refNum: 33, winNum: 22 }, // +18
+    { refNum: 0o0 === 0 ? 37 : 37, winNum: 14 }, // 00 -> 14, +17 (00 encoded as 37)
+    { refNum: 21, winNum: 22 }, // +19
+    { refNum: 7, winNum: 13 },  // +11  <-- off-reference
+  ];
+  const r = SL.analyze(obs);
+  assert.equal([...r.offsets].join(','), '18,17,19,11', 'the four measured offsets');
+  assert.equal([...r.outlierIndices].join(','), '3', 'only the 7->13 spin is flagged off-reference');
+  assert.equal(r.coreCount, 3, 'three on-reference spins form the core cluster');
+  assert.ok(Math.round(r.meanOffset) === 16 || Math.round(r.meanOffset) === 17 || Math.round(r.meanOffset) === 18,
+    `center pulled near 16-18 by the cluster, got ${r.meanOffset.toFixed(1)}`);
+  console.log('off-reference outlier flagged (real 4 spins): PASS');
+}
+
 console.log('sector-logger: ALL PASS');
