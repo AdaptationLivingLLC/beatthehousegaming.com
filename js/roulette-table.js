@@ -735,6 +735,20 @@
     _updateIntelFeed() {
       if (!BTHG.IntelFeed || !BTHG.PatternEngine) return;
       const machineId = BTHG._currentMachineId || 'default';
+
+      // Cycle lock (2026-07-06): consecutive-winner jump agreement on the
+      // numbers the user already tracks — zero extra input at the wheel.
+      // Synchronous + pure, with its own guard so it can never break the
+      // PatternEngine/CycleWatch paths below.
+      try {
+        if (BTHG.CycleLock && this.engine.history.length >= 3) {
+          const cl = BTHG.CycleLock.analyze(
+            this.engine.history,
+            (BTHG.MachineProfiles.getActive() || {}).wheelLayout || null
+          );
+          if (cl.locked) BTHG.IntelFeed.push({ kind: 'cycle-lock', message: cl.message, samples: cl.streak });
+        }
+      } catch (e) { console.warn('CycleLock update failed:', e); }
       BTHG.Storage.SeriesDB.getSeriesByMachine(machineId).then(archive => {
         const res = BTHG.PatternEngine.analyze({
           archive,
