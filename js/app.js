@@ -1220,7 +1220,11 @@
         BTHG.SectorLogger.tapLog(machineId, lastWin, waitSec, win);
         tapState.phase = 'idle';
         tapState.waitSec = null;
+        // The winner just logged IS the next spin's "last winner" — carry it
+        // forward so each number only gets typed once at the wheel.
+        overlay.querySelector('#sec-tap-lastwin').value = overlay.querySelector('#sec-tap-win').value;
         overlay.querySelector('#sec-tap-win').value = '';
+        overlay.querySelector('#sec-tap-manual').value = '';
         render();
       });
       overlay.querySelector('#sec-tap-undo').addEventListener('click', () => {
