@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>BTHG — Data Cleanup</title>
+  <link rel="icon" href="images/bthg-favicon.jpg">
+  <style>
+    :root {
+      --bg: #0a0a12;
+      --card: #12121e;
+      --card-border: rgba(255,215,0,0.15);
+      --accent: #FFD700;
+      --accent-dim: rgba(255,215,0,0.6);
+      --green: #51CF66;
+      --red: #FF6B6B;
+      --orange: #FFA94D;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+    }
+    h1 {
+      color: var(--accent);
+      font-size: 1.5em;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .subtitle {
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 0.85em;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card h2 {
+      font-size: 1em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75em;
+      font-weight: 600;
+    }
+    .badge-real { background: rgba(81,207,102,0.15); color: var(--green); }
+    .badge-junk { background: rgba(255,107,107,0.15); color: var(--red); }
+    .badge-discard { background: rgba(136,136,136,0.15); color: var(--text-dim); }
+    .badge-current { background: rgba(255,169,77,0.15); color: var(--orange); }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 0.85em;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-label { color: var(--text-dim); }
+    .stat-value { font-weight: 600; }
+    .stat-value.real { color: var(--green); }
+    .stat-value.junk { color: var(--red); }
+    .numbers-preview {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 0.7em;
+      color: var(--text-dim);
+      word-break: break-all;
+      margin-top: 6px;
+      max-height: 40px;
+      overflow: hidden;
+    }
+    .impact-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85em;
+      margin-top: 8px;
+    }
+    .impact-table th {
+      text-align: left;
+      color: var(--text-dim);
+      font-weight: 400;
+      padding: 4px 8px;
+    }
+    .impact-table td {
+      padding: 4px 8px;
+    }
+    .impact-table .before { color: var(--red); text-decoration: line-through; }
+    .impact-table .after { color: var(--green); font-weight: 600; }
+    #cleanup-btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #d4380d, #ff6b6b);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1.1em;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.2s;
+    }
+    #cleanup-btn:active { opacity: 0.7; }
+    #cleanup-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+    #cleanup-btn.success {
+      background: linear-gradient(135deg, #2b8a3e, #51cf66);
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      color: var(--accent-dim);
+      font-size: 0.85em;
+      margin-top: 16px;
+      text-decoration: none;
+    }
+    #status {
+      text-align: center;
+      padding: 10px;
+      font-size: 0.9em;
+      color: var(--text-dim);
+    }
+    .loading { color: var(--accent); }
+    .section-title {
+      color: var(--accent);
+      font-size: 0.8em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 20px 0 8px;
+      padding-left: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Data Cleanup</h1>
+  <p class="subtitle">Beat The House Gaming — Del Sol Table</p>
+
+  <div id="status" class="loading">Scanning your data...</div>
+  <div id="content" style="display:none"></div>
+
+  <script>
+  // Same DB constants as storage.js
+  const DB_NAME = 'bthg_roulette';
+  const DB_VERSION = 2;
+  const SPIN_STORE = 'spins';
+  const SERIES_STORE = 'completed_series';
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(SPIN_STORE)) {
+          const s = db.createObjectStore(SPIN_STORE, { keyPath: 'id', autoIncrement: true });
+          s.createIndex('machineId', 'machineId', { unique: false });
+          s.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        if (!db.objectStoreNames.contains(SERIES_STORE)) {
+          const s = db.createObjectStore(SERIES_STORE, { keyPath: 'id', autoIncrement: true });
+          s.createIndex('machineId', 'machineId', { unique: false });
+          s.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function getAll(db, store) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function deleteRecord(db, store, id) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  function loadSession() {
+    try {
+      const v = localStorage.getItem('bthg_current_session');
+      return v ? JSON.parse(v) : null;
+    } catch { return null; }
+  }
+  function saveSession(data) {
+    localStorage.setItem('bthg_current_session', JSON.stringify(data));
+  }
+
+  function analyzeGroup(spins) {
+    if (spins.length < 2) return { isJunk: false, reason: 'Too few spins' };
+    const gaps = [];
+    for (let i = 1; i < spins.length; i++) {
+      gaps.push(spins[i].timestamp - spins[i-1].timestamp);
+    }
+    const sorted = [...gaps].sort((a,b) => a - b);
+    const median = sorted[Math.floor(sorted.length/2)];
+    const sub200 = gaps.filter(g => g < 200).length;
+    const sub500 = gaps.filter(g => g < 500).length;
+    const total = gaps.length;
+    const duration = (spins[spins.length-1].timestamp - spins[0].timestamp) / 1000;
+
+    // Check for sequential number patterns
+    const nums = spins.map(s => s.number);
+    let seqRuns = 0;
+    for (let i = 2; i < nums.length; i++) {
+      const d1 = nums[i-1] - nums[i-2];
+      const d2 = nums[i] - nums[i-1];
+      if (d1 === d2 && d1 !== 0) seqRuns++;
+    }
+
+    if (sub200 > total * 0.5) {
+      return { isJunk: true, reason: `${sub200}/${total} gaps under 200ms — rapid swiping`, median, duration };
+    }
+    if (sub500 > total * 0.7 && duration < 60) {
+      return { isJunk: true, reason: `${sub500}/${total} gaps under 500ms in ${duration.toFixed(0)}s`, median, duration };
+    }
+    if (seqRuns > nums.length * 0.3) {
+      return { isJunk: true, reason: `Sequential number pattern detected (${seqRuns} runs)`, median, duration };
+    }
+    return { isJunk: false, reason: 'Normal timing', median, duration };
+  }
+
+  function formatDate(ms) {
+    return new Date(ms).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  async function scan() {
+    const statusEl = document.getElementById('status');
+    const contentEl = document.getElementById('content');
+
+    try {
+      const db = await openDB();
+      const allSpins = await getAll(db, SPIN_STORE);
+      const allSeries = await getAll(db, SERIES_STORE);
+      const session = loadSession();
+
+      // Group spins by seriesMarker
+      const groups = {};
+      for (const s of allSpins) {
+        const marker = String(s.seriesMarker || 'CURRENT');
+        if (!groups[marker]) groups[marker] = [];
+        groups[marker].push(s);
+      }
+
+      // Analyze each group
+      const junkSeriesIDs = [];      // series record IDs to delete
+      const junkSpinIDs = [];        // spin IDs to delete
+      let junkSeriesRecords = [];
+      const realSeriesRecords = [];
+      let html = '';
+
+      // Analyze completed series
+      html += '<div class="section-title">Completed Series</div>';
+      for (const s of allSeries) {
+        const marker = String(s.timestamp);
+        const markerSpins = groups[marker] || [];
+        const analysis = markerSpins.length > 1 ? analyzeGroup(markerSpins) : { isJunk: false, reason: 'Inline history only' };
+
+        // Also check the spinHistory directly if no spins matched
+        let isJunk = analysis.isJunk;
+        let reason = analysis.reason;
+
+        // Additional check: if series has spinHistory, check its timing from the series record
+        if (!isJunk && s.spinHistory && s.spinHistory.length > 0) {
+          // Check if the series spins in the DB have junk timing
+          const sSpins = allSpins.filter(sp => sp.seriesMarker === s.timestamp);
+          if (sSpins.length > 1) {
+            const sAnalysis = analyzeGroup(sSpins);
+            isJunk = sAnalysis.isJunk;
+            reason = sAnalysis.reason;
+          }
+        }
+
+        const badgeClass = isJunk ? 'badge-junk' : 'badge-real';
+        const badgeText = isJunk ? '🚨 JUNK' : '✅ REAL';
+
+        if (isJunk) {
+          junkSeriesIDs.push(s.id);
+          junkSeriesRecords.push(s);
+          // Also mark associated spins for deletion
+          for (const sp of markerSpins) junkSpinIDs.push(sp.id);
+        } else {
+          realSeriesRecords.push(s);
+        }
+
+        const previewNums = (s.spinHistory || []).slice(0, 20).join(', ');
+        html += `
+          <div class="card">
+            <h2>Series #${s.seriesNumber || s.id} <span class="badge ${badgeClass}">${badgeText}</span>
+              <span class="badge" style="background:rgba(255,255,255,0.05);color:var(--text-dim)">${s.endType}</span>
+            </h2>
+            <div class="stat-row"><span class="stat-label">Spins</span><span class="stat-value">${s.totalSpins}</span></div>
+            <div class="stat-row"><span class="stat-label">Casino</span><span class="stat-value">${s.casino || '?'}</span></div>
+            <div class="stat-row"><span class="stat-label">Date</span><span class="stat-value">${formatDate(s.timestamp)}</span></div>
+            <div class="stat-row"><span class="stat-label">Reason</span><span class="stat-value ${isJunk ? 'junk' : 'real'}">${reason}</span></div>
+            <div class="numbers-preview">${previewNums}${(s.spinHistory||[]).length > 20 ? '...' : ''}</div>
+          </div>`;
+      }
+
+      // Analyze discarded spin batches
+      const discardedGroups = Object.entries(groups).filter(([k]) => k.startsWith('discard:'));
+      if (discardedGroups.length > 0) {
+        html += '<div class="section-title">Already Discarded</div>';
+        for (const [marker, spins] of discardedGroups) {
+          html += `
+            <div class="card" style="opacity:0.5">
+              <h2>${spins.length} spins <span class="badge badge-discard">DISCARDED</span></h2>
+              <div class="stat-row"><span class="stat-label">Date</span><span class="stat-value">${formatDate(spins[0].timestamp)}</span></div>
+            </div>`;
+        }
+      }
+
+      // Analyze current session
+      const currentSpins = groups['CURRENT'] || [];
+      if (currentSpins.length > 0 || (session && session.engine && session.engine.totalSpins > 0)) {
+        html += '<div class="section-title">Current Session</div>';
+        const cAnalysis = currentSpins.length > 1 ? analyzeGroup(currentSpins) : { isJunk: false, reason: 'Single spin' };
+        const isCurrentJunk = cAnalysis.isJunk || (currentSpins.length > 0 && currentSpins.length <= 30 &&
+          currentSpins.length > 1 &&
+          (currentSpins[currentSpins.length-1].timestamp - currentSpins[0].timestamp) < 30000);
+
+        if (isCurrentJunk) {
+          for (const sp of currentSpins) junkSpinIDs.push(sp.id);
+        }
+
+        const activeSpins = session?.engine?.totalSpins || currentSpins.length;
+        const activeHistory = session?.engine?.history || currentSpins.map(s => s.number);
+        const cbadge = isCurrentJunk ? 'badge-junk' : 'badge-current';
+        const ctext = isCurrentJunk ? '🚨 JUNK' : '⏳ ACTIVE';
+        html += `
+          <div class="card">
+            <h2>${activeSpins} active spins <span class="badge ${cbadge}">${ctext}</span></h2>
+            <div class="stat-row"><span class="stat-label">Reason</span><span class="stat-value ${isCurrentJunk ? 'junk' : ''}">${isCurrentJunk ? cAnalysis.reason || 'Rapid tapping in <30s' : 'In progress'}</span></div>
+            <div class="numbers-preview">${activeHistory.slice(0,20).join(', ')}${activeHistory.length > 20 ? '...' : ''}</div>
+          </div>`;
+
+        // Impact summary
+        if (junkSeriesIDs.length > 0 || junkSpinIDs.length > 0) {
+          const realHistory = realSeriesRecords
+            .filter(s => s.endType === 'auto' || s.endType === 'manual')
+            .map(s => s.totalSpins);
+          // Also include snapshot-only series that are in the engine's seriesHistory
+          // but use the clean real records
+          const engineHistory = session?.engine?.seriesHistory || [];
+          
+          // Build clean history: take the real series' totalSpins
+          const cleanHistory = realSeriesRecords
+            .filter(s => s.endType === 'auto' || s.endType === 'manual')
+            .map(s => s.totalSpins);
+          
+          const oldAvg = engineHistory.length > 0
+            ? Math.round(engineHistory.reduce((a,b) => a+b, 0) / engineHistory.length)
+            : 0;
+          const newAvg = cleanHistory.length > 0
+            ? Math.round(cleanHistory.reduce((a,b) => a+b, 0) / cleanHistory.length)
+            : 0;
+          const oldLifetime = engineHistory.reduce((a,b) => a+b, 0);
+          const newLifetime = cleanHistory.reduce((a,b) => a+b, 0);
+
+          html += `
+            <div class="section-title">Cleanup Impact</div>
+            <div class="card">
+              <table class="impact-table">
+                <tr><th></th><th>Before</th><th>After</th></tr>
+                <tr><td>Series count</td><td class="before">${engineHistory.length}</td><td class="after">${cleanHistory.length}</td></tr>
+                <tr><td>Series avg</td><td class="before">${oldAvg}</td><td class="after">${newAvg}</td></tr>
+                <tr><td>Lifetime spins</td><td class="before">${oldLifetime}</td><td class="after">${newLifetime}</td></tr>
+                <tr><td>Active session</td><td class="before">${activeSpins} junk</td><td class="after">0 (clean)</td></tr>
+              </table>
+              <p style="color:var(--green);font-size:0.8em;margin-top:10px;text-align:center">
+                ✅ Your ${cleanHistory.length} real Del Sol series are untouched
+              </p>
+            </div>
+
+            <button id="cleanup-btn" onclick="runCleanup()">
+              🗑️ Remove ${junkSeriesIDs.length} Junk Series + ${junkSpinIDs.length} Junk Spins
+            </button>`;
+        } else {
+          html += `
+            <div class="card" style="text-align:center">
+              <p style="color:var(--green);font-size:1.1em">✅ No junk data found — your data is clean!</p>
+            </div>`;
+        }
+      }
+
+      // Store cleanup targets globally for the button
+      window._cleanupTargets = {
+        junkSeriesIDs,
+        junkSpinIDs,
+        realSeriesRecords,
+        session,
+        isCurrentJunk: currentSpins.length > 0 && (currentSpins.length <= 30 &&
+          currentSpins.length > 1 &&
+          (currentSpins[currentSpins.length-1].timestamp - currentSpins[0].timestamp) < 30000)
+      };
+
+      statusEl.style.display = 'none';
+      contentEl.style.display = 'block';
+      contentEl.innerHTML = html;
+      contentEl.innerHTML += '<a class="back-link" href="app.html">← Back to App</a>';
+
+    } catch (err) {
+      statusEl.textContent = '❌ Error: ' + err.message;
+      statusEl.style.color = 'var(--red)';
+      console.error(err);
+    }
+  }
+
+  async function runCleanup() {
+    const btn = document.getElementById('cleanup-btn');
+    const targets = window._cleanupTargets;
+    if (!targets) return;
+
+    if (!confirm(
+      `This will permanently delete:\n\n` +
+      `• ${targets.junkSeriesIDs.length} junk series record(s)\n` +
+      `• ${targets.junkSpinIDs.length} junk spin records\n` +
+      `• Reset current session to clean board\n\n` +
+      `Your real Del Sol series are NOT touched.\n\nProceed?`
+    )) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Cleaning up...';
+
+    try {
+      const db = await openDB();
+
+      // Delete junk series records
+      for (const id of targets.junkSeriesIDs) {
+        await deleteRecord(db, SERIES_STORE, id);
+      }
+
+      // Delete junk spin records
+      for (const id of targets.junkSpinIDs) {
+        await deleteRecord(db, SPIN_STORE, id);
+      }
+
+      // Fix the session in localStorage
+      const session = targets.session;
+      if (session && session.engine) {
+        // Build clean series history from real series only
+        const cleanHistory = targets.realSeriesRecords
+          .filter(s => s.endType === 'auto' || s.endType === 'manual')
+          .map(s => s.totalSpins);
+
+        session.engine.seriesHistory = cleanHistory;
+        session.engine.seriesCount = cleanHistory.length;
+        session.engine.seriesAverage = cleanHistory.length > 0
+          ? Math.round(cleanHistory.reduce((a,b) => a+b, 0) / cleanHistory.length)
+          : 0;
+        session.engine.lifetimeSpins = cleanHistory.reduce((a,b) => a+b, 0);
+
+        // Reset active session (clear the junk spins)
+        session.engine.totalSpins = 0;
+        session.engine.history = [];
+        session.engine.frozen = false;
+        session.engine.finalActivated = false;
+        session.engine.finalEight = [];
+        session.engine.finalEightAges = {};
+        session.engine.finalEightFirstHit = [];
+        session.engine.finalEightFirstHitSpins = {};
+        session.engine.entrySpin = null;
+        session.engine.trinityMissStreak = 0;
+
+        // Reset all number tracking
+        session.engine.numbers = session.engine.numbers.map(n => ({
+          value: n.value, hits: 0, ago: 0
+        }));
+
+        // Reset side bets
+        for (const key of Object.keys(session.engine.sideBetAgo || {})) {
+          session.engine.sideBetAgo[key] = 0;
+          session.engine.sideBetHits[key] = 0;
+        }
+
+        saveSession(session);
+      }
+
+      btn.textContent = '✅ Cleanup Complete — Tap to Reload';
+      btn.className = 'success';
+      btn.disabled = false;
+      btn.onclick = () => location.href = 'app.html';
+
+    } catch (err) {
+      btn.textContent = '❌ Error: ' + err.message;
+      btn.style.background = '#333';
+      console.error(err);
+    }
+  }
+
+  // Run on load
+  scan();
+  </script>
+</body>
+</html>
